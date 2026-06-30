@@ -1,0 +1,47 @@
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/**/build/
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+local.properties
+.cxx/
+captures/
+output.json
+
+# Keystore / signing — never commit these
+*.jks
+*.keystore
+keystore.properties
+release/
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+.kotlin/
+
+# Kotlin Multiplatform / iOS
+**/xcuserdata/
+**/*.xcworkspace/xcuserdata/
+**/iosApp/iosApp.xcodeproj/project.xcworkspace/
+**/iosApp/Pods/
+**/iosApp/build/
+*.hmap
+*.ipa
+Podfile.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+.env
