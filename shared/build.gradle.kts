@@ -54,6 +54,10 @@ kotlin {
             implementation(project.dependencies.platform(libs.supabase.bom))
             implementation(libs.supabase.auth)
             implementation(libs.supabase.postgrest)
+
+            // Koin (Dependency Injection)
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose.viewmodel)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

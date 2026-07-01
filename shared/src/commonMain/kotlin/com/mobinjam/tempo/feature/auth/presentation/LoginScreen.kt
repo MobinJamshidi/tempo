@@ -17,15 +17,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,19 +34,25 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.jetbrains.compose.resources.painterResource
+import org.koin.compose.viewmodel.koinViewModel
 import tempo.shared.generated.resources.Res
 import tempo.shared.generated.resources.logo
 
 @Composable
 fun LoginScreen(
-    onLoginClick: (email: String, password: String) -> Unit = { _, _ -> },
+    onLoginSuccess: () -> Unit = {},
     onCreateAccountClick: () -> Unit = {},
     onForgotPasswordClick: () -> Unit = {},
+    viewModel: LoginViewModel = koinViewModel(),
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // when login succeeds, notify the navigator
+    if (state.isLoginSuccessful) {
+        onLoginSuccess()
+    }
 
     Box(
         modifier = Modifier
@@ -66,8 +70,9 @@ fun LoginScreen(
             Image(
                 painter = painterResource(Res.drawable.logo),
                 contentDescription = "Tempo logo",
-                modifier = Modifier.size(90.dp),
+                modifier = Modifier.size(64.dp),
             )
+
             Spacer(Modifier.height(12.dp))
 
             Text(
@@ -97,8 +102,8 @@ fun LoginScreen(
             Spacer(Modifier.height(28.dp))
 
             TempoTextField(
-                value = email,
-                onValueChange = { email = it },
+                value = state.email,
+                onValueChange = viewModel::onEmailChange,
                 placeholder = "Email or username",
                 keyboardType = KeyboardType.Email,
             )
@@ -106,27 +111,38 @@ fun LoginScreen(
             Spacer(Modifier.height(12.dp))
 
             TempoTextField(
-                value = password,
-                onValueChange = { password = it },
+                value = state.password,
+                onValueChange = viewModel::onPasswordChange,
                 placeholder = "Password",
                 keyboardType = KeyboardType.Password,
                 visualTransformation =
-                    if (passwordVisible) VisualTransformation.None
+                    if (state.isPasswordVisible) VisualTransformation.None
                     else PasswordVisualTransformation(),
                 trailing = {
                     Text(
-                        text = if (passwordVisible) "Hide" else "Show",
+                        text = if (state.isPasswordVisible) "Hide" else "Show",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp,
-                        modifier = Modifier.clickable { passwordVisible = !passwordVisible },
+                        modifier = Modifier.clickable { viewModel.togglePasswordVisibility() },
                     )
                 },
             )
 
+            // error message
+            if (state.errorMessage != null) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = state.errorMessage!!,
+                    color = Color(0xFFE57373),
+                    fontSize = 13.sp,
+                )
+            }
+
             Spacer(Modifier.height(20.dp))
 
             Button(
-                onClick = { onLoginClick(email, password) },
+                onClick = { viewModel.onLoginClick() },
+                enabled = !state.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -135,7 +151,15 @@ fun LoginScreen(
                     containerColor = MaterialTheme.colorScheme.primary,
                 ),
             ) {
-                Text("Enter", color = Color.White, fontSize = 15.sp)
+                if (state.isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Text("Enter", color = Color.White, fontSize = 15.sp)
+                }
             }
 
             Spacer(Modifier.height(16.dp))
