@@ -13,6 +13,8 @@ class LoginViewModel(
     private val authRepository: AuthRepository,
 ) : ViewModel() {
 
+
+
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
@@ -58,5 +60,8 @@ class LoginViewModel(
                 },
             )
         }
+    }
+    fun resetLoginState() {
+        _uiState.update { it.copy(isLoginSuccessful = false) }
     }
 }
