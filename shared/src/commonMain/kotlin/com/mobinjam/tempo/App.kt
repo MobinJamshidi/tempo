@@ -19,7 +19,8 @@ private enum class AppScreen { Splash, Login, SignUp, ForgotPassword, Main }
 @Preview
 fun App() {
     TempoTheme {
-        var screen by remember { mutableStateOf(AppScreen.Splash) }
+        var screen by remember { mutableStateOf(AppScreen.Main) }
+
 
         when (screen) {
             AppScreen.Splash -> SplashScreen(

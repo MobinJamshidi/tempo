@@ -1,8 +1,9 @@
 package com.mobinjam.tempo.feature.main
 
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -11,13 +12,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,34 +25,47 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mobinjam.tempo.core.designsystem.icons.ProfileIcon
+import com.mobinjam.tempo.core.designsystem.icons.StudyIcon
+import com.mobinjam.tempo.core.designsystem.icons.TasksIcon
 import com.mobinjam.tempo.feature.profile.ProfileScreen
 import com.mobinjam.tempo.feature.study.StudyScreen
 import com.mobinjam.tempo.feature.tasks.TasksScreen
 
 private val GlowBlue = Color(0xFF3AC6FF)
 
-private enum class Tab(val label: String, val icon: String) {
-    Tasks("Tasks", "✓"),
-    Study("Study", "📚"),
-    Profile("Profile", "👤"),
+private enum class Tab(val label: String) {
+    Tasks("Tasks"),
+    Study("Study"),
+    Profile("Profile"),
 }
 
 @Composable
 fun MainScreen() {
     var selectedTab by remember { mutableStateOf(Tab.Tasks) }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            // soft blue gradient background so the glass navbar has something to shine over
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF0A0E1A), // near-black top
+                        Color(0xFF16213E), // deep blue
+                        Color(0xFF0A0E1A), // near-black bottom
+                    ),
+                ),
+            ),
     ) {
-        // ---- content area (fills the space above the navbar) ----
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+        // ---- content area ----
+        Box(modifier = Modifier.fillMaxSize()) {
             when (selectedTab) {
                 Tab.Tasks -> TasksScreen()
                 Tab.Study -> StudyScreen()
@@ -61,25 +73,40 @@ fun MainScreen() {
             }
         }
 
-        // ---- bottom navbar ----
-        BottomNavBar(
+        // ---- floating glass navbar ----
+        GlassNavBar(
             selectedTab = selectedTab,
             onTabSelected = { selectedTab = it },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 20.dp),
         )
     }
 }
 
 @Composable
-private fun BottomNavBar(
+private fun GlassNavBar(
     selectedTab: Tab,
     onTabSelected: (Tab) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color(0xFF0E0E10))
-            .height(72.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            // translucent glass pill
+            .background(
+                color = Color(0xFF1A1F2E).copy(alpha = 0.7f),
+                shape = RoundedCornerShape(50),
+            )
+            // subtle light border to give the glass edge
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(50),
+            )
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Tab.entries.forEach { tab ->
@@ -98,64 +125,59 @@ private fun NavBarItem(
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
-    // the glow light animates its width when selected
-    val glowWidth by animateDpAsState(
-        targetValue = if (isSelected) 28.dp else 0.dp,
-        animationSpec = tween(durationMillis = 300),
-        label = "glowWidth",
-    )
+    val contentColor = if (isSelected) Color.White else Color(0xFF8A8A90)
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
         modifier = Modifier
+            .clip(RoundedCornerShape(50))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
             )
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        Text(
-            text = tab.icon,
-            fontSize = 20.sp,
-        )
-
-        Spacer(Modifier.height(4.dp))
-
-        Text(
-            text = tab.label,
-            color = if (isSelected) GlowBlue else Color(0xFF6A6A70),
-            fontSize = 11.sp,
-        )
-
-        Spacer(Modifier.height(6.dp))
-
-        // ---- the blue glowing light ----
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.height(10.dp),
-        ) {
-            if (isSelected) {
-                // soft glow halo behind the bar
-                Box(
-                    modifier = Modifier
-                        .width(glowWidth + 16.dp)
-                        .height(10.dp)
-                        .graphicsLayer { alpha = 0.55f }
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(GlowBlue, Color.Transparent),
-                            ),
-                            shape = CircleShape,
+            // selected tab gets a brighter glass capsule with a glowing border
+            .background(
+                brush = if (isSelected) {
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            GlowBlue.copy(alpha = 0.25f),
+                            GlowBlue.copy(alpha = 0.08f),
                         ),
-                )
-                // the bright core bar
-                Box(
-                    modifier = Modifier
-                        .width(glowWidth)
-                        .height(3.dp)
-                        .background(GlowBlue, shape = RoundedCornerShape(50)),
+                    )
+                } else {
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, Color.Transparent),
+                    )
+                },
+                shape = RoundedCornerShape(50),
+            )
+            .then(
+                if (isSelected) {
+                    Modifier.border(
+                        width = 1.dp,
+                        color = GlowBlue.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(50),
+                    )
+                } else Modifier
+            )
+            .animateContentSize(animationSpec = tween(300))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            when (tab) {
+                Tab.Tasks -> TasksIcon(color = contentColor)
+                Tab.Study -> StudyIcon(color = contentColor)
+                Tab.Profile -> ProfileIcon(color = contentColor)
+            }
+
+            if (isSelected) {
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = tab.label,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }
