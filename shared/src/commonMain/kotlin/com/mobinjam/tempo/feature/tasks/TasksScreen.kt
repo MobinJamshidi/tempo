@@ -24,6 +24,9 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,7 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mobinjam.tempo.feature.tasks.domain.Task
+import com.mobinjam.tempo.feature.tasks.presentation.MonthCalendarDialog
 import com.mobinjam.tempo.feature.tasks.presentation.TasksViewModel
+import com.mobinjam.tempo.feature.tasks.presentation.WeekStrip
 import org.koin.compose.viewmodel.koinViewModel
 
 private val AccentBlue = Color(0xFF3AC6FF)
@@ -44,6 +49,7 @@ fun TasksScreen(
     viewModel: TasksViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showCalendar by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -61,6 +67,15 @@ fun TasksScreen(
 
         Spacer(Modifier.height(20.dp))
 
+        // ---- week strip ----
+        WeekStrip(
+            selectedDate = state.selectedDate,
+            onDateSelected = viewModel::onDateSelected,
+            onCalendarClick = { showCalendar = true },
+        )
+
+        Spacer(Modifier.height(20.dp))
+
         // ---- add new task row ----
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -70,7 +85,7 @@ fun TasksScreen(
                 value = state.newTaskTitle,
                 onValueChange = viewModel::onNewTaskTitleChange,
                 placeholder = {
-                    Text("Add a new task...", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Add a task for this day...", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(),
@@ -89,7 +104,6 @@ fun TasksScreen(
 
             Spacer(Modifier.size(10.dp))
 
-            // add button
             Box(
                 modifier = Modifier
                     .size(52.dp)
@@ -121,7 +135,8 @@ fun TasksScreen(
             Spacer(Modifier.height(12.dp))
         }
 
-        // ---- task list ----
+        // ---- task list (for the selected day) ----
+        val tasks = state.tasksForSelectedDate
         when {
             state.isLoading -> {
                 Box(
@@ -132,13 +147,13 @@ fun TasksScreen(
                 }
             }
 
-            state.tasks.isEmpty() -> {
+            tasks.isEmpty() -> {
                 Box(
                     modifier = Modifier.fillMaxWidth().height(200.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "No tasks yet. Add your first one!",
+                        text = "No tasks for this day.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp,
                     )
@@ -149,7 +164,7 @@ fun TasksScreen(
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(state.tasks, key = { it.id }) { task ->
+                    items(tasks, key = { it.id }) { task ->
                         TaskRow(
                             task = task,
                             onToggle = { viewModel.toggleTask(task.id, task.isDone) },
@@ -159,6 +174,15 @@ fun TasksScreen(
                 }
             }
         }
+    }
+
+    // ---- full month calendar dialog ----
+    if (showCalendar) {
+        MonthCalendarDialog(
+            selectedDate = state.selectedDate,
+            onDateSelected = viewModel::onDateSelected,
+            onDismiss = { showCalendar = false },
+        )
     }
 }
 
@@ -176,7 +200,6 @@ private fun TaskRow(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // check circle
         Box(
             modifier = Modifier
                 .size(24.dp)
@@ -192,7 +215,6 @@ private fun TaskRow(
 
         Spacer(Modifier.size(14.dp))
 
-        // title
         Text(
             text = task.title,
             color = if (task.isDone) MaterialTheme.colorScheme.onSurfaceVariant
@@ -202,7 +224,6 @@ private fun TaskRow(
             modifier = Modifier.weight(1f),
         )
 
-        // delete button
         Text(
             text = "✕",
             color = MaterialTheme.colorScheme.onSurfaceVariant,

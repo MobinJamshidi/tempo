@@ -2,12 +2,14 @@ package com.mobinjam.tempo.feature.tasks.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mobinjam.tempo.core.util.DateUtils
 import com.mobinjam.tempo.feature.tasks.domain.TaskRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
 
 class TasksViewModel(
     private val taskRepository: TaskRepository,
@@ -26,7 +28,7 @@ class TasksViewModel(
 
             taskRepository.getTasks().fold(
                 onSuccess = { tasks ->
-                    _uiState.update { it.copy(isLoading = false, tasks = tasks) }
+                    _uiState.update { it.copy(isLoading = false, allTasks = tasks) }
                 },
                 onFailure = { error ->
                     _uiState.update {
@@ -37,6 +39,10 @@ class TasksViewModel(
         }
     }
 
+    fun onDateSelected(date: LocalDate) {
+        _uiState.update { it.copy(selectedDate = date) }
+    }
+
     fun onNewTaskTitleChange(value: String) {
         _uiState.update { it.copy(newTaskTitle = value) }
     }
@@ -45,13 +51,15 @@ class TasksViewModel(
         val title = _uiState.value.newTaskTitle.trim()
         if (title.isBlank()) return
 
+        val date = DateUtils.toDbString(_uiState.value.selectedDate)
+
         viewModelScope.launch {
             _uiState.update { it.copy(isAddingTask = true, errorMessage = null) }
 
-            taskRepository.addTask(title = title, dueDate = null).fold(
+            taskRepository.addTask(title = title, dueDate = date).fold(
                 onSuccess = {
                     _uiState.update { it.copy(isAddingTask = false, newTaskTitle = "") }
-                    loadTasks() // refresh the list
+                    loadTasks()
                 },
                 onFailure = { error ->
                     _uiState.update {
