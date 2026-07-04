@@ -38,6 +38,11 @@ class SupabaseAuthRepository : AuthRepository {
     override suspend fun signOut(): Result<Unit> =
         runCatching { auth.signOut() }
 
+    override suspend fun resetPassword(email: String): Result<Unit> =
+        runCatching {
+            auth.resetPasswordForEmail(email.trim())
+        }
+
     override fun isLoggedIn(): Boolean =
         auth.currentSessionOrNull() != null
 }

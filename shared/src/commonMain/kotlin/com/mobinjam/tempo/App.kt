@@ -7,12 +7,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import com.mobinjam.tempo.core.designsystem.theme.TempoTheme
+import com.mobinjam.tempo.feature.auth.presentation.ForgotPasswordScreen
 import com.mobinjam.tempo.feature.auth.presentation.LoginScreen
 import com.mobinjam.tempo.feature.auth.presentation.SignUpScreen
 import com.mobinjam.tempo.feature.home.HomeScreen
 import com.mobinjam.tempo.feature.splash.SplashScreen
 
-private enum class AppScreen { Splash, Login, SignUp, Home }
+private enum class AppScreen { Splash, Login, SignUp, ForgotPassword, Home }
 
 @Composable
 @Preview
@@ -27,9 +28,13 @@ fun App() {
             AppScreen.Login -> LoginScreen(
                 onLoginSuccess = { screen = AppScreen.Home },
                 onCreateAccountClick = { screen = AppScreen.SignUp },
+                onForgotPasswordClick = { screen = AppScreen.ForgotPassword },
             )
             AppScreen.SignUp -> SignUpScreen(
                 onSignUpSuccess = { screen = AppScreen.Login },
+                onBackToLogin = { screen = AppScreen.Login },
+            )
+            AppScreen.ForgotPassword -> ForgotPasswordScreen(
                 onBackToLogin = { screen = AppScreen.Login },
             )
             AppScreen.Home -> HomeScreen(
