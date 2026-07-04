@@ -5,14 +5,21 @@ import com.mobinjam.tempo.feature.auth.domain.AuthRepository
 import com.mobinjam.tempo.feature.auth.presentation.ForgotPasswordViewModel
 import com.mobinjam.tempo.feature.auth.presentation.LoginViewModel
 import com.mobinjam.tempo.feature.auth.presentation.SignUpViewModel
+import com.mobinjam.tempo.feature.tasks.data.SupabaseTaskRepository
+import com.mobinjam.tempo.feature.tasks.domain.TaskRepository
+import com.mobinjam.tempo.feature.tasks.presentation.TasksViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
 
+    // Auth
     single<AuthRepository> { SupabaseAuthRepository() }
-
     viewModel { LoginViewModel(get()) }
     viewModel { SignUpViewModel(get()) }
     viewModel { ForgotPasswordViewModel(get()) }
+
+    // Tasks
+    single<TaskRepository> { SupabaseTaskRepository() }
+    viewModel { TasksViewModel(get()) }
 }
