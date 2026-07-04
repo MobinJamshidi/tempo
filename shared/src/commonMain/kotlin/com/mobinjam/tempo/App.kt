@@ -10,10 +10,10 @@ import com.mobinjam.tempo.core.designsystem.theme.TempoTheme
 import com.mobinjam.tempo.feature.auth.presentation.ForgotPasswordScreen
 import com.mobinjam.tempo.feature.auth.presentation.LoginScreen
 import com.mobinjam.tempo.feature.auth.presentation.SignUpScreen
-import com.mobinjam.tempo.feature.home.HomeScreen
+import com.mobinjam.tempo.feature.main.MainScreen
 import com.mobinjam.tempo.feature.splash.SplashScreen
 
-private enum class AppScreen { Splash, Login, SignUp, ForgotPassword, Home }
+private enum class AppScreen { Splash, Login, SignUp, ForgotPassword, Main }
 
 @Composable
 @Preview
@@ -26,7 +26,7 @@ fun App() {
                 onFinished = { screen = AppScreen.Login },
             )
             AppScreen.Login -> LoginScreen(
-                onLoginSuccess = { screen = AppScreen.Home },
+                onLoginSuccess = { screen = AppScreen.Main },
                 onCreateAccountClick = { screen = AppScreen.SignUp },
                 onForgotPasswordClick = { screen = AppScreen.ForgotPassword },
             )
@@ -37,9 +37,7 @@ fun App() {
             AppScreen.ForgotPassword -> ForgotPasswordScreen(
                 onBackToLogin = { screen = AppScreen.Login },
             )
-            AppScreen.Home -> HomeScreen(
-                onLogout = { screen = AppScreen.Login },
-            )
+            AppScreen.Main -> MainScreen()
         }
     }
 }

@@ -8,6 +8,8 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
 }
 
+
+
 kotlin {
     listOf(
         iosArm64(),
@@ -18,6 +20,7 @@ kotlin {
             isStatic = true
         }
     }
+
     
     androidLibrary {
        namespace = "com.mobinjam.tempo.shared"
@@ -58,6 +61,10 @@ kotlin {
             // Koin (Dependency Injection)
             implementation(libs.koin.core)
             implementation(libs.koin.compose.viewmodel)
+
+            // Navigation
+            implementation(libs.navigation.compose)
+            // Icons
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
