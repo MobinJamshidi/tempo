@@ -57,9 +57,9 @@ fun MainScreen() {
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF0A0E1A), // near-black top
-                        Color(0xFF16213E), // deep blue
-                        Color(0xFF0A0E1A), // near-black bottom
+                        Color(0xFF05070D),
+                        Color(0xFF0B1220),
+                        Color(0xFF05070D),
                     ),
                 ),
             ),

@@ -52,6 +52,27 @@ class SupabaseTaskRepository : TaskRepository {
             Unit
         }
 
+    override suspend fun updateTask(
+        id: Long,
+        title: String,
+        priority: String,
+        description: String?,
+        category: String?,
+    ): Result<Unit> =
+        runCatching {
+            db.from("tasks").update(
+                {
+                    set("title", title)
+                    set("priority", priority)
+                    set("description", description)
+                    set("category", category)
+                }
+            ) {
+                filter { eq("id", id) }
+            }
+            Unit
+        }
+
     override suspend fun toggleTaskDone(id: Long, isDone: Boolean): Result<Unit> =
         runCatching {
             db.from("tasks").update(

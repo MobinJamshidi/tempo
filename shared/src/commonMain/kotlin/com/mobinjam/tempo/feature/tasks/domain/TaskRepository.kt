@@ -12,6 +12,14 @@ interface TaskRepository {
         category: String?,
     ): Result<Unit>
 
+    suspend fun updateTask(
+        id: Long,
+        title: String,
+        priority: String,
+        description: String?,
+        category: String?,
+    ): Result<Unit>
+
     suspend fun toggleTaskDone(id: Long, isDone: Boolean): Result<Unit>
 
     suspend fun deleteTask(id: Long): Result<Unit>

@@ -1,6 +1,7 @@
 package com.mobinjam.tempo.feature.tasks
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -17,17 +18,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,6 +56,7 @@ import com.mobinjam.tempo.feature.tasks.presentation.MonthCalendarDialog
 import com.mobinjam.tempo.feature.tasks.presentation.TasksViewModel
 import com.mobinjam.tempo.feature.tasks.presentation.WeekStrip
 import com.mobinjam.tempo.feature.tasks.presentation.priorityColor
+import kotlinx.coroutines.delay
 import org.koin.compose.viewmodel.koinViewModel
 
 private val AccentBlue = Color(0xFF3AC6FF)
@@ -61,6 +69,7 @@ fun TasksScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showCalendar by remember { mutableStateOf(false) }
     var showAddSheet by remember { mutableStateOf(false) }
+    var swipeHintShown by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -156,9 +165,15 @@ fun TasksScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(bottom = 100.dp),
                     ) {
-                        items(tasks, key = { it.id }) { task ->
-                            TaskCard(
+                        itemsIndexed(tasks, key = { _, task -> task.id }) { index, task ->
+                            SwipeableTaskCard(
                                 task = task,
+                                showSwipeHint = index == 0 && !swipeHintShown,
+                                onHintShown = { swipeHintShown = true },
+                                onClick = {
+                                    viewModel.startEditingTask(task)
+                                    showAddSheet = true
+                                },
                                 onToggle = { viewModel.toggleTask(task.id, task.isDone) },
                                 onDelete = { viewModel.deleteTask(task.id) },
                             )
@@ -176,7 +191,10 @@ fun TasksScreen(
                 .size(60.dp)
                 .clip(CircleShape)
                 .background(AccentBlue)
-                .clickable { showAddSheet = true },
+                .clickable {
+                    viewModel.cancelEditing()
+                    showAddSheet = true
+                },
             contentAlignment = Alignment.Center,
         ) {
             Text("+", color = Color.White, fontSize = 30.sp)
@@ -198,15 +216,20 @@ fun TasksScreen(
             priority = state.newTaskPriority,
             selectedCategory = state.newTaskCategory,
             isAdding = state.isAddingTask,
+            isEditing = state.editingTaskId != null,
             onTitleChange = viewModel::onNewTaskTitleChange,
             onDescriptionChange = viewModel::onNewTaskDescriptionChange,
             onPriorityChange = viewModel::onNewTaskPriorityChange,
             onCategoryChange = viewModel::onNewTaskCategoryChange,
             onConfirm = {
-                viewModel.addTask()
+                viewModel.saveTask()
+                showAddSheet = false
+                swipeHintShown = false
+            },
+            onDismiss = {
+                viewModel.cancelEditing()
                 showAddSheet = false
             },
-            onDismiss = { showAddSheet = false },
         )
     }
 }
@@ -264,8 +287,66 @@ private fun DayProgress(
 }
 
 @Composable
+private fun SwipeableTaskCard(
+    task: Task,
+    showSwipeHint: Boolean,
+    onHintShown: () -> Unit,
+    onClick: () -> Unit,
+    onToggle: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onDelete()
+                true
+            } else {
+                false
+            }
+        },
+    )
+
+    val hintOffset = remember { Animatable(0f) }
+
+    LaunchedEffect(showSwipeHint) {
+        if (showSwipeHint) {
+            delay(600)
+            hintOffset.animateTo(-64f, animationSpec = tween(300))
+            hintOffset.animateTo(0f, animationSpec = tween(300))
+            onHintShown()
+        }
+    }
+
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFFE57373))
+                    .padding(end = 24.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Text("🗑️", fontSize = 22.sp)
+            }
+        },
+        modifier = Modifier.offset { IntOffset(hintOffset.value.toInt(), 0) },
+    ) {
+        TaskCard(
+            task = task,
+            onClick = onClick,
+            onToggle = onToggle,
+            onDelete = onDelete,
+        )
+    }
+}
+
+@Composable
 private fun TaskCard(
     task: Task,
+    onClick: () -> Unit,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -274,6 +355,11 @@ private fun TaskCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(CardBg)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

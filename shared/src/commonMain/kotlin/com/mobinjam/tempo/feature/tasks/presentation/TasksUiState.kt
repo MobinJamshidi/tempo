@@ -12,13 +12,19 @@ data class TasksUiState(
     val hasLoadedOnce: Boolean = false,
     val errorMessage: String? = null,
     val isAddingTask: Boolean = false,
+    val editingTaskId: Long? = null,
     val newTaskTitle: String = "",
     val newTaskDescription: String = "",
     val newTaskPriority: TaskPriority = TaskPriority.MEDIUM,
     val newTaskCategory: String? = null,
 ) {
     val tasksForSelectedDate: List<Task>
-        get() = allTasks.filter { it.dueDate == DateUtils.toDbString(selectedDate) }
+        get() = allTasks
+            .filter { it.dueDate == DateUtils.toDbString(selectedDate) }
+            .sortedWith(
+                compareBy<Task> { it.isDone }
+                    .thenByDescending { it.priority.ordinal }
+            )
 
     val completedCount: Int
         get() = tasksForSelectedDate.count { it.isDone }

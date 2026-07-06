@@ -44,6 +44,7 @@ fun AddTaskSheet(
     priority: TaskPriority,
     selectedCategory: String?,
     isAdding: Boolean,
+    isEditing: Boolean,
     onTitleChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onPriorityChange: (TaskPriority) -> Unit,
@@ -60,7 +61,7 @@ fun AddTaskSheet(
                 .padding(20.dp),
         ) {
             Text(
-                text = "New Task",
+                text = if (isEditing) "Edit Task" else "New Task",
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -144,7 +145,12 @@ fun AddTaskSheet(
                             strokeWidth = 2.dp,
                         )
                     } else {
-                        Text("Add", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = if (isEditing) "Save" else "Add",
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
                 }
             }

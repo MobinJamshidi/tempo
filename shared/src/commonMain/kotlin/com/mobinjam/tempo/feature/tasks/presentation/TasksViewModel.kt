@@ -3,6 +3,7 @@ package com.mobinjam.tempo.feature.tasks.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobinjam.tempo.core.util.DateUtils
+import com.mobinjam.tempo.feature.tasks.domain.Task
 import com.mobinjam.tempo.feature.tasks.domain.TaskPriority
 import com.mobinjam.tempo.feature.tasks.domain.TaskRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -99,6 +100,78 @@ class TasksViewModel(
                 onFailure = { error ->
                     _uiState.update {
                         it.copy(isAddingTask = false, errorMessage = error.message ?: "Failed to add task")
+                    }
+                },
+            )
+        }
+    }
+
+    fun startEditingTask(task: Task) {
+        _uiState.update {
+            it.copy(
+                editingTaskId = task.id,
+                newTaskTitle = task.title,
+                newTaskDescription = task.description ?: "",
+                newTaskPriority = task.priority,
+                newTaskCategory = task.category,
+            )
+        }
+    }
+
+    fun cancelEditing() {
+        _uiState.update {
+            it.copy(
+                editingTaskId = null,
+                newTaskTitle = "",
+                newTaskDescription = "",
+                newTaskPriority = TaskPriority.MEDIUM,
+                newTaskCategory = null,
+            )
+        }
+    }
+
+    fun saveTask() {
+        val editingId = _uiState.value.editingTaskId
+        if (editingId == null) {
+            addTask()
+        } else {
+            updateEditingTask(editingId)
+        }
+    }
+
+    private fun updateEditingTask(id: Long) {
+        val current = _uiState.value
+        val title = current.newTaskTitle.trim()
+        if (title.isBlank()) return
+
+        val description = current.newTaskDescription.trim().ifBlank { null }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isAddingTask = true, errorMessage = null) }
+
+            taskRepository.updateTask(
+                id = id,
+                title = title,
+                priority = current.newTaskPriority.dbValue,
+                description = description,
+                category = current.newTaskCategory,
+            ).fold(
+                onSuccess = {
+                    _uiState.update {
+                        it.copy(
+                            isAddingTask = false,
+                            editingTaskId = null,
+                            newTaskTitle = "",
+                            newTaskDescription = "",
+                            newTaskPriority = TaskPriority.MEDIUM,
+                            newTaskCategory = null,
+                        )
+                    }
+                    loadTasks()
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(isAddingTask = false, errorMessage = error.message ?: "Failed to update task")
                     }
                 },
             )
