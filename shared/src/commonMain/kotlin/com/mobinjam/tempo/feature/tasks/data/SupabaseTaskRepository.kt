@@ -2,6 +2,7 @@ package com.mobinjam.tempo.feature.tasks.data
 
 import com.mobinjam.tempo.core.data.remote.SupabaseClientProvider
 import com.mobinjam.tempo.feature.tasks.domain.Task
+import com.mobinjam.tempo.feature.tasks.domain.TaskPriority
 import com.mobinjam.tempo.feature.tasks.domain.TaskRepository
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
@@ -24,14 +25,29 @@ class SupabaseTaskRepository : TaskRepository {
                     title = dto.title,
                     isDone = dto.isDone,
                     dueDate = dto.dueDate,
+                    priority = TaskPriority.fromDb(dto.priority),
+                    description = dto.description,
+                    category = dto.category,
                 )
             }
         }
 
-    override suspend fun addTask(title: String, dueDate: String?): Result<Unit> =
+    override suspend fun addTask(
+        title: String,
+        dueDate: String?,
+        priority: String,
+        description: String?,
+        category: String?,
+    ): Result<Unit> =
         runCatching {
             db.from("tasks").insert(
-                TaskDto(title = title, dueDate = dueDate)
+                TaskDto(
+                    title = title,
+                    dueDate = dueDate,
+                    priority = priority,
+                    description = description,
+                    category = category,
+                )
             )
             Unit
         }

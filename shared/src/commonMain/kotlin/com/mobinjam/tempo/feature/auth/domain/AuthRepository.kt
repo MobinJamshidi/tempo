@@ -11,4 +11,6 @@ interface AuthRepository {
     suspend fun resetPassword(email: String): Result<Unit>
 
     fun isLoggedIn(): Boolean
+
+    suspend fun awaitSessionAndCheckLogin(): Boolean
 }

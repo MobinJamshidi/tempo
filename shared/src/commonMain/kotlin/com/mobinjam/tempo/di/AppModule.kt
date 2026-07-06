@@ -10,6 +10,7 @@ import com.mobinjam.tempo.feature.tasks.domain.TaskRepository
 import com.mobinjam.tempo.feature.tasks.presentation.TasksViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
+import com.mobinjam.tempo.feature.splash.SplashViewModel
 
 val appModule = module {
 
@@ -22,4 +23,6 @@ val appModule = module {
     // Tasks
     single<TaskRepository> { SupabaseTaskRepository() }
     viewModel { TasksViewModel(get()) }
+
+    viewModel { SplashViewModel(get()) }
 }

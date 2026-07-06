@@ -4,6 +4,8 @@ import com.mobinjam.tempo.core.data.remote.SupabaseClientProvider
 import com.mobinjam.tempo.feature.auth.domain.AuthRepository
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.status.SessionStatus
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -45,4 +47,9 @@ class SupabaseAuthRepository : AuthRepository {
 
     override fun isLoggedIn(): Boolean =
         auth.currentSessionOrNull() != null
+
+    override suspend fun awaitSessionAndCheckLogin(): Boolean {
+        val status = auth.sessionStatus.first { it !is SessionStatus.Initializing }
+        return status is SessionStatus.Authenticated
+    }
 }

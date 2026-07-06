@@ -3,6 +3,7 @@ package com.mobinjam.tempo.feature.tasks.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobinjam.tempo.core.util.DateUtils
+import com.mobinjam.tempo.feature.tasks.domain.TaskPriority
 import com.mobinjam.tempo.feature.tasks.domain.TaskRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,11 +29,17 @@ class TasksViewModel(
 
             taskRepository.getTasks().fold(
                 onSuccess = { tasks ->
-                    _uiState.update { it.copy(isLoading = false, allTasks = tasks) }
+                    _uiState.update {
+                        it.copy(isLoading = false, allTasks = tasks, hasLoadedOnce = true)
+                    }
                 },
                 onFailure = { error ->
                     _uiState.update {
-                        it.copy(isLoading = false, errorMessage = error.message ?: "Failed to load tasks")
+                        it.copy(
+                            isLoading = false,
+                            hasLoadedOnce = true,
+                            errorMessage = error.message ?: "Failed to load tasks",
+                        )
                     }
                 },
             )
@@ -47,18 +54,46 @@ class TasksViewModel(
         _uiState.update { it.copy(newTaskTitle = value) }
     }
 
+    fun onNewTaskDescriptionChange(value: String) {
+        _uiState.update { it.copy(newTaskDescription = value) }
+    }
+
+    fun onNewTaskPriorityChange(priority: TaskPriority) {
+        _uiState.update { it.copy(newTaskPriority = priority) }
+    }
+
+    fun onNewTaskCategoryChange(category: String?) {
+        _uiState.update { it.copy(newTaskCategory = category) }
+    }
+
     fun addTask() {
-        val title = _uiState.value.newTaskTitle.trim()
+        val current = _uiState.value
+        val title = current.newTaskTitle.trim()
         if (title.isBlank()) return
 
-        val date = DateUtils.toDbString(_uiState.value.selectedDate)
+        val date = DateUtils.toDbString(current.selectedDate)
+        val description = current.newTaskDescription.trim().ifBlank { null }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isAddingTask = true, errorMessage = null) }
 
-            taskRepository.addTask(title = title, dueDate = date).fold(
+            taskRepository.addTask(
+                title = title,
+                dueDate = date,
+                priority = current.newTaskPriority.dbValue,
+                description = description,
+                category = current.newTaskCategory,
+            ).fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isAddingTask = false, newTaskTitle = "") }
+                    _uiState.update {
+                        it.copy(
+                            isAddingTask = false,
+                            newTaskTitle = "",
+                            newTaskDescription = "",
+                            newTaskPriority = TaskPriority.MEDIUM,
+                            newTaskCategory = null,
+                        )
+                    }
                     loadTasks()
                 },
                 onFailure = { error ->
@@ -71,11 +106,28 @@ class TasksViewModel(
     }
 
     fun toggleTask(id: Long, currentIsDone: Boolean) {
+        val newValue = !currentIsDone
+
+        _uiState.update { state ->
+            state.copy(
+                allTasks = state.allTasks.map { task ->
+                    if (task.id == id) task.copy(isDone = newValue) else task
+                }
+            )
+        }
+
         viewModelScope.launch {
-            taskRepository.toggleTaskDone(id, !currentIsDone).fold(
-                onSuccess = { loadTasks() },
+            taskRepository.toggleTaskDone(id, newValue).fold(
+                onSuccess = { },
                 onFailure = { error ->
-                    _uiState.update { it.copy(errorMessage = error.message ?: "Failed to update task") }
+                    _uiState.update { state ->
+                        state.copy(
+                            allTasks = state.allTasks.map { task ->
+                                if (task.id == id) task.copy(isDone = currentIsDone) else task
+                            },
+                            errorMessage = error.message ?: "Failed to update task",
+                        )
+                    }
                 },
             )
         }

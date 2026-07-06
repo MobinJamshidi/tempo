@@ -4,7 +4,13 @@ interface TaskRepository {
 
     suspend fun getTasks(): Result<List<Task>>
 
-    suspend fun addTask(title: String, dueDate: String?): Result<Unit>
+    suspend fun addTask(
+        title: String,
+        dueDate: String?,
+        priority: String,
+        description: String?,
+        category: String?,
+    ): Result<Unit>
 
     suspend fun toggleTaskDone(id: Long, isDone: Boolean): Result<Unit>
 
