@@ -10,4 +10,15 @@ interface StudyRepository {
         category: String?,
         startedAt: String?,
     ): Result<Unit>
+
+    suspend fun getStats(): Result<StudyStats>
+
+    suspend fun getDailyTotals(): Result<Map<String, Long>>
+
+    suspend fun getDailyBreakdown(): Result<Map<String, List<CategoryTime>>>
 }
+
+data class CategoryTime(
+    val category: String,
+    val seconds: Long,
+)

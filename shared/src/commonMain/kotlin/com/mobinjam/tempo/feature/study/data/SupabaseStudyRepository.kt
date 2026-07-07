@@ -3,8 +3,10 @@ package com.mobinjam.tempo.feature.study.data
 import com.mobinjam.tempo.core.data.remote.SupabaseClientProvider
 import com.mobinjam.tempo.feature.study.domain.StudySession
 import com.mobinjam.tempo.feature.study.domain.StudyRepository
+import com.mobinjam.tempo.feature.study.domain.StudyStats
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.datetime.minus
 
 class SupabaseStudyRepository : StudyRepository {
 
@@ -45,5 +47,62 @@ class SupabaseStudyRepository : StudyRepository {
                 )
             )
             Unit
+        }
+    override suspend fun getStats(): Result<StudyStats> =
+        getSessions().map { sessions ->
+            val today = com.mobinjam.tempo.core.util.DateUtils.today()
+            val todayStr = com.mobinjam.tempo.core.util.DateUtils.toDbString(today)
+
+            // today's total
+            val todaySeconds = sessions
+                .filter { it.date == todayStr }
+                .sumOf { it.durationSeconds }
+
+            // last 7 days total
+            val weekDates = com.mobinjam.tempo.core.util.DateUtils.last7Days()
+                .map { com.mobinjam.tempo.core.util.DateUtils.toDbString(it) }
+                .toSet()
+            val weekSeconds = sessions
+                .filter { it.date in weekDates }
+                .sumOf { it.durationSeconds }
+
+            // streak: count consecutive days back from today that have study time
+            val studiedDates = sessions.map { it.date }.toSet()
+            var streak = 0
+            var cursor = today
+            while (true) {
+                val cursorStr = com.mobinjam.tempo.core.util.DateUtils.toDbString(cursor)
+                if (cursorStr in studiedDates) {
+                    streak++
+                    cursor = cursor.minus(1, kotlinx.datetime.DateTimeUnit.DAY)
+                } else {
+                    break
+                }
+            }
+
+            StudyStats(
+                todaySeconds = todaySeconds,
+                weekSeconds = weekSeconds,
+                streakDays = streak,
+            )
+        }
+    override suspend fun getDailyTotals(): Result<Map<String, Long>> =
+        getSessions().map { sessions ->
+            sessions.groupBy { it.date }
+                .mapValues { (_, list) -> list.sumOf { it.durationSeconds } }
+        }
+    override suspend fun getDailyBreakdown(): Result<Map<String, List<com.mobinjam.tempo.feature.study.domain.CategoryTime>>> =
+        getSessions().map { sessions ->
+            sessions.groupBy { it.date }.mapValues { (_, daySessions) ->
+                daySessions
+                    .groupBy { it.category ?: "Other" }
+                    .map { (cat, list) ->
+                        com.mobinjam.tempo.feature.study.domain.CategoryTime(
+                            category = cat,
+                            seconds = list.sumOf { it.durationSeconds },
+                        )
+                    }
+                    .sortedByDescending { it.seconds }
+            }
         }
 }

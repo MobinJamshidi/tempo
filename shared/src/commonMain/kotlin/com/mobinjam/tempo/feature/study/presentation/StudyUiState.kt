@@ -1,5 +1,7 @@
 package com.mobinjam.tempo.feature.study.presentation
 
+import com.mobinjam.tempo.feature.study.domain.StudyStats
+
 enum class TimerStatus { IDLE, RUNNING, PAUSED }
 
 data class StudyUiState(
@@ -8,6 +10,10 @@ data class StudyUiState(
     val selectedCategory: String? = null,
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
+    val stats: StudyStats = StudyStats(),
+    val dailyTotals: Map<String, Long> = emptyMap(),
+    val dailyBreakdown: Map<String, List<com.mobinjam.tempo.feature.study.domain.CategoryTime>> = emptyMap(),
+    val selectedHeatmapDate: String? = null,
 ) {
     val formattedTime: String
         get() {

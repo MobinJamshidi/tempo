@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,9 +34,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mobinjam.tempo.core.util.DateUtils
+import com.mobinjam.tempo.feature.study.domain.CategoryTime
 import com.mobinjam.tempo.feature.study.presentation.StudyViewModel
 import com.mobinjam.tempo.feature.study.presentation.TimerStatus
 import com.mobinjam.tempo.feature.tasks.domain.TaskCategory
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
 import org.koin.compose.viewmodel.koinViewModel
 
 private val AccentBlue = Color(0xFF3AC6FF)
@@ -51,6 +58,7 @@ fun StudyScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp),
     ) {
         Spacer(Modifier.height(40.dp))
@@ -68,12 +76,10 @@ fun StudyScreen(
             time = state.formattedTime,
             status = state.status,
             category = state.selectedCategory,
-            isSaving = state.isSaving,
             onStart = viewModel::start,
             onPause = viewModel::pause,
             onResume = viewModel::resume,
             onStop = viewModel::stopAndSave,
-            onCancel = viewModel::cancelTimer,
         )
 
         if (state.errorMessage != null) {
@@ -85,7 +91,6 @@ fun StudyScreen(
             )
         }
 
-        // category picker only shown when timer is idle
         AnimatedVisibility(visible = state.status == TimerStatus.IDLE) {
             Column {
                 Spacer(Modifier.height(20.dp))
@@ -112,17 +117,30 @@ fun StudyScreen(
 
         Spacer(Modifier.height(30.dp))
 
-        // placeholder for upcoming features (heatmap, streak, stats...)
-        Box(
-            modifier = Modifier.fillMaxWidth().height(120.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "📊 Stats coming soon",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp,
-            )
-        }
+        StatsRow(
+            todaySeconds = state.stats.todaySeconds,
+            weekSeconds = state.stats.weekSeconds,
+            streakDays = state.stats.streakDays,
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        Text(
+            text = "Activity",
+            color = MaterialTheme.colorScheme.onBackground,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.height(12.dp))
+
+        StudyHeatmap(
+            dailyTotals = state.dailyTotals,
+            dailyBreakdown = state.dailyBreakdown,
+            selectedDate = state.selectedHeatmapDate,
+            onDaySelected = viewModel::onHeatmapDaySelected,
+        )
+
+        Spacer(Modifier.height(30.dp))
     }
 }
 
@@ -131,12 +149,10 @@ private fun TimerCard(
     time: String,
     status: TimerStatus,
     category: String?,
-    isSaving: Boolean,
     onStart: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onStop: () -> Unit,
-    onCancel: () -> Unit,
 ) {
     val isActive = status == TimerStatus.RUNNING || status == TimerStatus.PAUSED
 
@@ -155,7 +171,6 @@ private fun TimerCard(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // left button: play / pause
             CircleButton(
                 bg = if (status == TimerStatus.RUNNING) Color(0xFF2A3040) else AccentBlue,
                 content = {
@@ -174,7 +189,6 @@ private fun TimerCard(
                 },
             )
 
-            // center: time + label
             Column(
                 modifier = Modifier.weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -196,7 +210,6 @@ private fun TimerCard(
                 )
             }
 
-            // right button: stop (only when active)
             if (isActive) {
                 CircleButton(
                     bg = StopRed,
@@ -260,4 +273,334 @@ private fun CategoryChip(
             fontSize = 13.sp,
         )
     }
+}
+
+@Composable
+private fun StatsRow(
+    todaySeconds: Long,
+    weekSeconds: Long,
+    streakDays: Int,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        StatCard(
+            modifier = Modifier.weight(1f),
+            value = formatHoursMinutes(todaySeconds),
+            label = "Today",
+        )
+        StatCard(
+            modifier = Modifier.weight(1f),
+            value = formatHoursMinutes(weekSeconds),
+            label = "This week",
+        )
+        StatCard(
+            modifier = Modifier.weight(1f),
+            value = if (streakDays > 0) "$streakDays 🔥" else "0",
+            label = "Day streak",
+        )
+    }
+}
+
+@Composable
+private fun StatCard(
+    modifier: Modifier = Modifier,
+    value: String,
+    label: String,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBg)
+            .padding(vertical = 16.dp, horizontal = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = value,
+            color = AccentBlue,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = label,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 11.sp,
+        )
+    }
+}
+
+@Composable
+private fun StudyHeatmap(
+    dailyTotals: Map<String, Long>,
+    dailyBreakdown: Map<String, List<CategoryTime>>,
+    selectedDate: String?,
+    onDaySelected: (String) -> Unit,
+) {
+    val weeks = 12
+    val today = DateUtils.today()
+
+    val startMonday = run {
+        val mondayThisWeek = today.minus(today.dayOfWeek.ordinal, DateTimeUnit.DAY)
+        mondayThisWeek.minus((weeks - 1) * 7, DateTimeUnit.DAY)
+    }
+
+    val columns = (0 until weeks).map { w ->
+        (0 until 7).map { d ->
+            startMonday.plus(w * 7 + d, DateTimeUnit.DAY)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBg)
+            .padding(16.dp),
+    ) {
+        // month labels row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+        ) {
+            // small spacer to align with weekday column
+            Spacer(Modifier.width(32.dp))
+            var lastMonth = -1
+            columns.forEach { week ->
+                val firstOfWeek = week.first()
+                val label = if (firstOfWeek.monthNumber != lastMonth) {
+                    lastMonth = firstOfWeek.monthNumber
+                    monthShort(firstOfWeek.monthNumber)
+                } else ""
+                Text(
+                    text = label,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 9.sp,
+                    modifier = Modifier.width(20.dp),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+        ) {
+            // weekday labels column
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.padding(end = 6.dp),
+            ) {
+                listOf("Mon", "", "Wed", "", "Fri", "", "Sun").forEach { day ->
+                    Box(modifier = Modifier.size(width = 26.dp, height = 16.dp)) {
+                        Text(
+                            text = day,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 9.sp,
+                        )
+                    }
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                columns.forEach { week ->
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        week.forEach { date ->
+                            val dateStr = DateUtils.toDbString(date)
+                            val seconds = dailyTotals[dateStr] ?: 0L
+                            val isFuture = date > today
+                            HeatCell(
+                                seconds = seconds,
+                                isFuture = isFuture,
+                                isSelected = selectedDate == dateStr,
+                                onClick = { if (!isFuture) onDaySelected(dateStr) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // legend
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Less",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp,
+            )
+            Spacer(Modifier.width(6.dp))
+            listOf(0L, 600L, 1800L, 3600L, 7200L).forEach { s ->
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(heatColor(s)),
+                )
+                Spacer(Modifier.width(3.dp))
+            }
+            Spacer(Modifier.width(3.dp))
+            Text(
+                text = "More",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp,
+            )
+        }
+
+        // selected day info card
+        AnimatedVisibility(visible = selectedDate != null) {
+            if (selectedDate != null) {
+                Column {
+                    Spacer(Modifier.height(14.dp))
+                    DayInfoCard(
+                        date = selectedDate,
+                        breakdown = dailyBreakdown[selectedDate].orEmpty(),
+                        totalSeconds = dailyTotals[selectedDate] ?: 0L,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayInfoCard(
+    date: String,
+    breakdown: List<CategoryTime>,
+    totalSeconds: Long,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White.copy(alpha = 0.06f))
+            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+            .padding(16.dp),
+    ) {
+        Text(
+            text = prettyDate(date),
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(10.dp))
+
+        if (breakdown.isEmpty()) {
+            Text(
+                text = "No study on this day",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+            )
+        } else {
+            breakdown.forEach { ct ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 3.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = ct.category,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontSize = 13.sp,
+                    )
+                    Text(
+                        text = formatClock(ct.seconds),
+                        color = AccentBlue,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "Total",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = formatClock(totalSeconds),
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeatCell(
+    seconds: Long,
+    isFuture: Boolean,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(16.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(if (isFuture) Color.Transparent else heatColor(seconds))
+            .then(
+                if (isSelected) Modifier.border(1.5.dp, Color.White, RoundedCornerShape(4.dp))
+                else Modifier
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+    )
+}
+
+private fun heatColor(seconds: Long): Color {
+    val minutes = seconds / 60
+    return when {
+        minutes <= 0 -> Color(0xFF20262E)
+        minutes < 15 -> AccentBlue.copy(alpha = 0.25f)
+        minutes < 45 -> AccentBlue.copy(alpha = 0.45f)
+        minutes < 90 -> AccentBlue.copy(alpha = 0.70f)
+        else -> AccentBlue
+    }
+}
+
+private fun formatHoursMinutes(totalSeconds: Long): String {
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    return when {
+        hours > 0 -> "${hours}h ${minutes}m"
+        minutes > 0 -> "${minutes}m"
+        else -> "0m"
+    }
+}
+
+private fun formatClock(totalSeconds: Long): String {
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    return if (hours > 0) "$hours:${twoDigits(minutes)}" else "0:${twoDigits(minutes)}"
+}
+
+private fun twoDigits(v: Long): String = if (v < 10) "0$v" else v.toString()
+
+private fun monthShort(month: Int): String =
+    listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+        .getOrElse(month - 1) { "" }
+
+private fun prettyDate(dateStr: String): String {
+    val date = DateUtils.fromDbString(dateStr) ?: return dateStr
+    return "${monthShort(date.monthNumber)} ${date.dayOfMonth}, ${date.year}"
 }

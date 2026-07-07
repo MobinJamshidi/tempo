@@ -22,13 +22,43 @@ class StudyViewModel(
 
     private var timerJob: Job? = null
 
+    init {
+        loadStats()
+    }
+
+    fun loadStats() {
+        viewModelScope.launch {
+            studyRepository.getStats().fold(
+                onSuccess = { stats -> _uiState.update { it.copy(stats = stats) } },
+                onFailure = { },
+            )
+            studyRepository.getDailyTotals().fold(
+                onSuccess = { totals -> _uiState.update { it.copy(dailyTotals = totals) } },
+                onFailure = { },
+            )
+            studyRepository.getDailyBreakdown().fold(
+                onSuccess = { breakdown -> _uiState.update { it.copy(dailyBreakdown = breakdown) } },
+                onFailure = { },
+            )
+        }
+    }
+
+    fun onHeatmapDaySelected(date: String) {
+        _uiState.update {
+            it.copy(selectedHeatmapDate = if (it.selectedHeatmapDate == date) null else date)
+        }
+    }
+
+    fun dismissHeatmapDay() {
+        _uiState.update { it.copy(selectedHeatmapDate = null) }
+    }
+
     fun onCategorySelected(category: String?) {
         _uiState.update { it.copy(selectedCategory = category) }
     }
 
     fun start() {
         if (_uiState.value.status == TimerStatus.RUNNING) return
-
         _uiState.update { it.copy(status = TimerStatus.RUNNING, errorMessage = null) }
         startTicking()
     }
@@ -62,7 +92,6 @@ class StudyViewModel(
         val current = _uiState.value
         val seconds = current.elapsedSeconds
 
-        // ignore very short sessions (less than 1 second) and just reset
         if (seconds < 1) {
             resetTimer()
             return
@@ -79,6 +108,7 @@ class StudyViewModel(
             ).fold(
                 onSuccess = {
                     resetTimer()
+                    loadStats()
                 },
                 onFailure = { error ->
                     _uiState.update {
