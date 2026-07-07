@@ -11,6 +11,9 @@ import com.mobinjam.tempo.feature.tasks.presentation.TasksViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 import com.mobinjam.tempo.feature.splash.SplashViewModel
+import com.mobinjam.tempo.feature.study.data.SupabaseStudyRepository
+import com.mobinjam.tempo.feature.study.domain.StudyRepository
+import com.mobinjam.tempo.feature.study.presentation.StudyViewModel
 
 val appModule = module {
 
@@ -25,4 +28,6 @@ val appModule = module {
     viewModel { TasksViewModel(get()) }
 
     viewModel { SplashViewModel(get()) }
+    single<StudyRepository> { SupabaseStudyRepository() }
+    viewModel { StudyViewModel(get()) }
 }

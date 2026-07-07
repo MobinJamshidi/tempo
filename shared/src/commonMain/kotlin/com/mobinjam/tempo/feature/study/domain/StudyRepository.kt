@@ -1,0 +1,13 @@
+package com.mobinjam.tempo.feature.study.domain
+
+interface StudyRepository {
+
+    suspend fun getSessions(): Result<List<StudySession>>
+
+    suspend fun addSession(
+        durationSeconds: Long,
+        date: String,
+        category: String?,
+        startedAt: String?,
+    ): Result<Unit>
+}
