@@ -3,6 +3,7 @@ package com.mobinjam.tempo.feature.tasks.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobinjam.tempo.core.util.DateUtils
+import com.mobinjam.tempo.core.util.friendlyErrorMessage
 import com.mobinjam.tempo.feature.tasks.domain.Task
 import com.mobinjam.tempo.feature.tasks.domain.TaskPriority
 import com.mobinjam.tempo.feature.tasks.domain.TaskRepository
@@ -33,16 +34,28 @@ class TasksViewModel(
                     _uiState.update {
                         it.copy(isLoading = false, allTasks = tasks, hasLoadedOnce = true)
                     }
+                    loadSubtasks()
                 },
                 onFailure = { error ->
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             hasLoadedOnce = true,
-                            errorMessage = error.message ?: "Failed to load tasks",
+                            errorMessage = friendlyErrorMessage(error),
                         )
                     }
                 },
+            )
+        }
+    }
+
+    private fun loadSubtasks() {
+        viewModelScope.launch {
+            taskRepository.getSubtasks().fold(
+                onSuccess = { subtasks ->
+                    _uiState.update { it.copy(allSubtasks = subtasks) }
+                },
+                onFailure = { },
             )
         }
     }
@@ -99,7 +112,7 @@ class TasksViewModel(
                 },
                 onFailure = { error ->
                     _uiState.update {
-                        it.copy(isAddingTask = false, errorMessage = error.message ?: "Failed to add task")
+                        it.copy(isAddingTask = false, errorMessage = friendlyErrorMessage(error))
                     }
                 },
             )
@@ -171,7 +184,7 @@ class TasksViewModel(
                 },
                 onFailure = { error ->
                     _uiState.update {
-                        it.copy(isAddingTask = false, errorMessage = error.message ?: "Failed to update task")
+                        it.copy(isAddingTask = false, errorMessage = friendlyErrorMessage(error))
                     }
                 },
             )
@@ -198,7 +211,7 @@ class TasksViewModel(
                             allTasks = state.allTasks.map { task ->
                                 if (task.id == id) task.copy(isDone = currentIsDone) else task
                             },
-                            errorMessage = error.message ?: "Failed to update task",
+                            errorMessage = friendlyErrorMessage(error),
                         )
                     }
                 },
@@ -211,8 +224,62 @@ class TasksViewModel(
             taskRepository.deleteTask(id).fold(
                 onSuccess = { loadTasks() },
                 onFailure = { error ->
-                    _uiState.update { it.copy(errorMessage = error.message ?: "Failed to delete task") }
+                    _uiState.update { it.copy(errorMessage = friendlyErrorMessage(error)) }
                 },
+            )
+        }
+    }
+
+    fun addSubtask(taskId: Long, title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isBlank()) return
+
+        viewModelScope.launch {
+            taskRepository.addSubtask(taskId, trimmed).fold(
+                onSuccess = { loadSubtasks() },
+                onFailure = { error ->
+                    _uiState.update { it.copy(errorMessage = friendlyErrorMessage(error)) }
+                },
+            )
+        }
+    }
+
+    fun toggleSubtask(id: Long, currentIsDone: Boolean) {
+        val newValue = !currentIsDone
+
+        _uiState.update { state ->
+            state.copy(
+                allSubtasks = state.allSubtasks.map { sub ->
+                    if (sub.id == id) sub.copy(isDone = newValue) else sub
+                }
+            )
+        }
+
+        viewModelScope.launch {
+            taskRepository.toggleSubtaskDone(id, newValue).fold(
+                onSuccess = { },
+                onFailure = { error ->
+                    _uiState.update { state ->
+                        state.copy(
+                            allSubtasks = state.allSubtasks.map { sub ->
+                                if (sub.id == id) sub.copy(isDone = currentIsDone) else sub
+                            },
+                            errorMessage = friendlyErrorMessage(error),
+                        )
+                    }
+                },
+            )
+        }
+    }
+
+    fun deleteSubtask(id: Long) {
+        _uiState.update { state ->
+            state.copy(allSubtasks = state.allSubtasks.filter { it.id != id })
+        }
+        viewModelScope.launch {
+            taskRepository.deleteSubtask(id).fold(
+                onSuccess = { },
+                onFailure = { loadSubtasks() },
             )
         }
     }

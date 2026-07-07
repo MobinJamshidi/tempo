@@ -2,6 +2,7 @@ package com.mobinjam.tempo.feature.auth.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mobinjam.tempo.core.util.friendlyErrorMessage
 import com.mobinjam.tempo.feature.auth.domain.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,7 +50,6 @@ class SignUpViewModel(
     fun onSignUpClick() {
         val state = _uiState.value
 
-        // ---- validation ----
         if (state.username.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Please enter a username") }
             return
@@ -67,25 +67,20 @@ class SignUpViewModel(
             return
         }
 
-        // ---- call Supabase ----
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            val result = authRepository.signUp(
+            authRepository.signUp(
                 email = state.email.trim(),
                 password = state.password,
                 username = state.username.trim(),
-            )
-            result.fold(
+            ).fold(
                 onSuccess = {
                     _uiState.update { it.copy(isLoading = false, isSignUpSuccessful = true) }
                 },
                 onFailure = { error ->
                     _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = error.message ?: "Sign up failed",
-                        )
+                        it.copy(isLoading = false, errorMessage = friendlyErrorMessage(error))
                     }
                 },
             )
@@ -96,10 +91,7 @@ class SignUpViewModel(
         _uiState.update { it.copy(isSignUpSuccessful = false) }
     }
 
-    // ---- helpers ----
-
     private fun isEmailValid(email: String): Boolean {
-        // ساده ولی کافی: باید یه @ و یه نقطه بعدش داشته باشه
         return email.contains("@") && email.substringAfter("@").contains(".")
     }
 
@@ -111,7 +103,7 @@ class SignUpViewModel(
         if (password.length >= 10) score++
         if (password.any { it.isDigit() }) score++
         if (password.any { it.isLetter() }) score++
-        if (password.any { !it.isLetterOrDigit() }) score++ // نماد مثل !@#
+        if (password.any { !it.isLetterOrDigit() }) score++
 
         return when {
             score <= 2 -> PasswordStrength.WEAK

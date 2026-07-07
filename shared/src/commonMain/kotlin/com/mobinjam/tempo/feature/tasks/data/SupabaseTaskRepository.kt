@@ -6,6 +6,8 @@ import com.mobinjam.tempo.feature.tasks.domain.TaskPriority
 import com.mobinjam.tempo.feature.tasks.domain.TaskRepository
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
+import com.mobinjam.tempo.feature.tasks.domain.Subtask
+
 
 class SupabaseTaskRepository : TaskRepository {
 
@@ -86,6 +88,50 @@ class SupabaseTaskRepository : TaskRepository {
     override suspend fun deleteTask(id: Long): Result<Unit> =
         runCatching {
             db.from("tasks").delete {
+                filter { eq("id", id) }
+            }
+            Unit
+        }
+
+    override suspend fun getSubtasks(): Result<List<Subtask>> =
+        runCatching {
+            val result = db.from("subtasks")
+                .select {
+                    order("created_at", Order.ASCENDING)
+                }
+                .decodeList<SubtaskDto>()
+
+            result.map { dto ->
+                Subtask(
+                    id = dto.id,
+                    taskId = dto.taskId,
+                    title = dto.title,
+                    isDone = dto.isDone,
+                )
+            }
+        }
+
+    override suspend fun addSubtask(taskId: Long, title: String): Result<Unit> =
+        runCatching {
+            db.from("subtasks").insert(
+                SubtaskDto(taskId = taskId, title = title)
+            )
+            Unit
+        }
+
+    override suspend fun toggleSubtaskDone(id: Long, isDone: Boolean): Result<Unit> =
+        runCatching {
+            db.from("subtasks").update(
+                { set("is_done", isDone) }
+            ) {
+                filter { eq("id", id) }
+            }
+            Unit
+        }
+
+    override suspend fun deleteSubtask(id: Long): Result<Unit> =
+        runCatching {
+            db.from("subtasks").delete {
                 filter { eq("id", id) }
             }
             Unit

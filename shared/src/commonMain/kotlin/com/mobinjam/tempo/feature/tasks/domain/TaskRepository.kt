@@ -23,4 +23,12 @@ interface TaskRepository {
     suspend fun toggleTaskDone(id: Long, isDone: Boolean): Result<Unit>
 
     suspend fun deleteTask(id: Long): Result<Unit>
+
+    suspend fun getSubtasks(): Result<List<Subtask>>
+
+    suspend fun addSubtask(taskId: Long, title: String): Result<Unit>
+
+    suspend fun toggleSubtaskDone(id: Long, isDone: Boolean): Result<Unit>
+
+    suspend fun deleteSubtask(id: Long): Result<Unit>
 }
