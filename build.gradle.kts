@@ -7,3 +7,13 @@ plugins {
     alias(libs.plugins.composeCompiler) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
 }
+
+subprojects {
+    configurations.all {
+        resolutionStrategy {
+            force("androidx.navigation:navigation-compose:2.9.8")
+            force("androidx.navigation:navigation-common:2.9.8")
+            force("androidx.navigation:navigation-runtime:2.9.8")
+        }
+    }
+}

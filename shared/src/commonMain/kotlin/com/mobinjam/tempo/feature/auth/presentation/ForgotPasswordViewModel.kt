@@ -2,6 +2,7 @@ package com.mobinjam.tempo.feature.auth.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mobinjam.tempo.core.util.friendlyErrorMessage
 import com.mobinjam.tempo.feature.auth.domain.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,18 +32,13 @@ class ForgotPasswordViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            val result = authRepository.resetPassword(state.email.trim())
-
-            result.fold(
+            authRepository.resetPassword(state.email.trim()).fold(
                 onSuccess = {
                     _uiState.update { it.copy(isLoading = false, isEmailSent = true) }
                 },
                 onFailure = { error ->
                     _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = error.message ?: "Something went wrong",
-                        )
+                        it.copy(isLoading = false, errorMessage = friendlyErrorMessage(error))
                     }
                 },
             )

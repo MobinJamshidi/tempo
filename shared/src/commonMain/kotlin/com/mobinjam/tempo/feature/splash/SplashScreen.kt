@@ -30,16 +30,23 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.Font
 import org.jetbrains.compose.resources.painterResource
-// ↓↓↓ match these to the Res import in your App.kt ↓↓↓
+import org.koin.compose.viewmodel.koinViewModel
 import tempo.shared.generated.resources.Res
 import tempo.shared.generated.resources.antonio_thin
 import tempo.shared.generated.resources.splash_image
 
 @Composable
-fun SplashScreen(onFinished: () -> Unit) {
+fun SplashScreen(
+    onNavigateToLogin: () -> Unit,
+    onNavigateToMain: () -> Unit,
+    viewModel: SplashViewModel = koinViewModel(),
+) {
+    val destination by viewModel.destination.collectAsStateWithLifecycle()
+
     var started by remember { mutableStateOf(false) }
     val antonio = FontFamily(Font(Res.font.antonio_thin))
 
@@ -57,8 +64,17 @@ fun SplashScreen(onFinished: () -> Unit) {
     LaunchedEffect(Unit) {
         delay(2000)      // image stays sharp
         started = true   // blur the image + reveal the text
-        delay(3000)      // hold
-        onFinished()     // go to login
+    }
+
+    LaunchedEffect(destination) {
+        if (destination != SplashDestination.LOADING) {
+            delay(3000)  // hold on the animation before navigating
+            when (destination) {
+                SplashDestination.MAIN -> onNavigateToMain()
+                SplashDestination.LOGIN -> onNavigateToLogin()
+                else -> {}
+            }
+        }
     }
 
     Box(
