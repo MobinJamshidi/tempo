@@ -159,6 +159,14 @@ fun StudyScreen(
                 lastWeek = state.stats.lastWeekSeconds,
             )
 
+            if (state.bestHour != null) {
+                Spacer(Modifier.height(12.dp))
+                BestHourCard(
+                    hour = state.bestHour!!.hour,
+                    totalSeconds = state.bestHour!!.totalSeconds,
+                )
+            }
+
             Spacer(Modifier.height(24.dp))
 
             Text(
@@ -1000,5 +1008,71 @@ private fun WeekComparisonCard(
                 fontSize = 12.sp,
             )
         }
+    }
+}
+
+@Composable
+private fun BestHourCard(
+    hour: Int,
+    totalSeconds: Long,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBg)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(AccentBlue.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = hourEmoji(hour), fontSize = 20.sp)
+        }
+
+        Spacer(Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Your focus time",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "You focus best around ${formatHour(hour)}",
+                color = MaterialTheme.colorScheme.onBackground,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "${formatHoursMinutes(totalSeconds)} studied at this hour",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+            )
+        }
+    }
+}
+
+private fun formatHour(hour: Int): String {
+    return when {
+        hour == 0 -> "12 AM"
+        hour < 12 -> "$hour AM"
+        hour == 12 -> "12 PM"
+        else -> "${hour - 12} PM"
+    }
+}
+
+private fun hourEmoji(hour: Int): String {
+    return when (hour) {
+        in 5..11 -> "🌅"
+        in 12..16 -> "☀️"
+        in 17..20 -> "🌇"
+        else -> "🌙"
     }
 }

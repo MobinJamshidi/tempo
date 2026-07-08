@@ -120,4 +120,24 @@ class SupabaseStudyRepository : StudyRepository {
                     .sortedByDescending { it.seconds }
             }
         }
+    override suspend fun getBestHour(): Result<com.mobinjam.tempo.feature.study.domain.BestHour?> =
+        getSessions().map { sessions ->
+            val byHour = sessions
+                .mapNotNull { session ->
+                    val hour = com.mobinjam.tempo.core.util.DateUtils.hourOf(session.startedAt)
+                    if (hour != null) hour to session.durationSeconds else null
+                }
+                .groupBy({ it.first }, { it.second })
+                .mapValues { (_, durations) -> durations.sum() }
+
+            val best = byHour.maxByOrNull { it.value }
+            if (best != null) {
+                com.mobinjam.tempo.feature.study.domain.BestHour(
+                    hour = best.key,
+                    totalSeconds = best.value,
+                )
+            } else {
+                null
+            }
+        }
 }

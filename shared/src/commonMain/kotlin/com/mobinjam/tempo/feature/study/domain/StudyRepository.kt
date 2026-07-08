@@ -16,9 +16,16 @@ interface StudyRepository {
     suspend fun getDailyTotals(): Result<Map<String, Long>>
 
     suspend fun getDailyBreakdown(): Result<Map<String, List<CategoryTime>>>
+
+    suspend fun getBestHour(): Result<BestHour?>
 }
 
 data class CategoryTime(
     val category: String,
     val seconds: Long,
+
+)
+data class BestHour(
+    val hour: Int,
+    val totalSeconds: Long,
 )

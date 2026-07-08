@@ -24,6 +24,7 @@ class StudyViewModel(
     val uiState: StateFlow<StudyUiState> = _uiState.asStateFlow()
 
     private var timerJob: Job? = null
+    private var sessionStartedAt: String? = null
 
     init {
         loadStats()
@@ -49,7 +50,10 @@ class StudyViewModel(
                 onSuccess = { breakdown -> _uiState.update { it.copy(dailyBreakdown = breakdown) } },
                 onFailure = { },
             )
-        }
+            studyRepository.getBestHour().fold(
+                onSuccess = { best -> _uiState.update { it.copy(bestHour = best) } },
+                onFailure = { },
+            )        }
     }
 
     private fun loadStatsThenCheckCelebration() {
@@ -114,8 +118,10 @@ class StudyViewModel(
     fun start() {
         if (_uiState.value.status == TimerStatus.RUNNING) return
         _uiState.update { it.copy(status = TimerStatus.RUNNING, errorMessage = null) }
+        sessionStartedAt = DateUtils.nowTimestamp()
         startTicking()
     }
+
     fun startWithCategory(category: String?) {
         if (_uiState.value.status == TimerStatus.RUNNING) return
         _uiState.update {
@@ -125,6 +131,7 @@ class StudyViewModel(
                 errorMessage = null,
             )
         }
+        sessionStartedAt = DateUtils.nowTimestamp()
         startTicking()
     }
 
@@ -158,7 +165,6 @@ class StudyViewModel(
         val goalSeconds = s.dailyGoalMinutes * 60L
         if (goalSeconds <= 0) return
 
-        // total study today = already-saved sessions + current running timer
         val liveTotal = s.stats.todaySeconds + s.elapsedSeconds
 
         if (liveTotal >= goalSeconds) {
@@ -189,7 +195,7 @@ class StudyViewModel(
                 durationSeconds = seconds,
                 date = DateUtils.toDbString(DateUtils.today()),
                 category = current.selectedCategory,
-                startedAt = null,
+                startedAt = sessionStartedAt,
             ).fold(
                 onSuccess = {
                     resetTimer()
@@ -211,6 +217,7 @@ class StudyViewModel(
     }
 
     private fun resetTimer() {
+        sessionStartedAt = null
         _uiState.update {
             it.copy(
                 elapsedSeconds = 0,

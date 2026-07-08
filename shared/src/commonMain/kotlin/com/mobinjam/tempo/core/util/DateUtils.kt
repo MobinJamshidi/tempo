@@ -8,6 +8,7 @@ import kotlinx.datetime.todayIn
 import kotlinx.datetime.plus
 import kotlinx.datetime.minus
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.toLocalDateTime
 
 object DateUtils {
 
@@ -81,4 +82,27 @@ object DateUtils {
 
     fun isDayBefore(a: LocalDate, b: LocalDate): Boolean =
         a.plus(1, DateTimeUnit.DAY) == b
+
+    fun nowTimestamp(): String {
+        val now = kotlin.time.Clock.System.now()
+            .toLocalDateTime(TimeZone.currentSystemDefault())
+        return now.toString()
+    }
+
+    fun hourOf(timestamp: String?): Int? {
+        if (timestamp.isNullOrBlank()) return null
+        return try {
+            // normalize: replace space with T, drop timezone/fraction
+            val normalized = timestamp
+                .replace(" ", "T")
+                .substringBefore(".")
+                .substringBefore("+")
+                .trim()
+            // extract hour from "2026-07-09T01:07:46" → the part after T, before first :
+            val timePart = normalized.substringAfter("T", "")
+            timePart.substringBefore(":").toIntOrNull()
+        } catch (e: Exception) {
+            null
+        }
+    }
 }
