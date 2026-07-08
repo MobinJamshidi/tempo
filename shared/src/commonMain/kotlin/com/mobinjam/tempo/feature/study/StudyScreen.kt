@@ -143,6 +143,13 @@ fun StudyScreen(
                 streakDays = state.stats.streakDays,
             )
 
+            Spacer(Modifier.height(12.dp))
+
+            WeekComparisonCard(
+                thisWeek = state.stats.weekSeconds,
+                lastWeek = state.stats.lastWeekSeconds,
+            )
+
             Spacer(Modifier.height(24.dp))
 
             Text(
@@ -574,6 +581,7 @@ private fun StatsRow(
     weekSeconds: Long,
     streakDays: Int,
 ) {
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -910,5 +918,78 @@ private fun goalLabel(minutes: Int): String {
         h > 0 && m > 0 -> "${h}h ${m}m"
         h > 0 -> "${h}h"
         else -> "${m}m"
+    }
+
+}
+@Composable
+private fun WeekComparisonCard(
+    thisWeek: Long,
+    lastWeek: Long,
+) {
+    // figure out the percentage change vs last week
+    val (message, isUp, showArrow) = when {
+        lastWeek == 0L && thisWeek == 0L ->
+            Triple("No study data yet this week", false, false)
+        lastWeek == 0L && thisWeek > 0L ->
+            Triple("Great start! Nothing to compare yet", true, false)
+        else -> {
+            val diff = thisWeek - lastWeek
+            val percent = ((diff.toFloat() / lastWeek) * 100).toInt()
+            when {
+                percent > 0 -> Triple("You studied $percent% more than last week", true, true)
+                percent < 0 -> Triple("You studied ${-percent}% less than last week", false, true)
+                else -> Triple("Same as last week — steady!", true, false)
+            }
+        }
+    }
+
+    val accent = if (isUp) AccentBlue else Color(0xFFE57373)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBg)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (showArrow) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(accent.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = if (isUp) "↑" else "↓",
+                    color = accent,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "This week vs last week",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "${formatHoursMinutes(thisWeek)}  vs  ${formatHoursMinutes(lastWeek)}",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+            )
+        }
     }
 }

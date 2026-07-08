@@ -65,6 +65,15 @@ class SupabaseStudyRepository : StudyRepository {
             val weekSeconds = sessions
                 .filter { it.date in weekDates }
                 .sumOf { it.durationSeconds }
+            // the 7 days before this week (days 8..14 ago)
+            val lastWeekDates = (7..13).map {
+                com.mobinjam.tempo.core.util.DateUtils.toDbString(
+                    today.minus(it, kotlinx.datetime.DateTimeUnit.DAY)
+                )
+            }.toSet()
+            val lastWeekSeconds = sessions
+                .filter { it.date in lastWeekDates }
+                .sumOf { it.durationSeconds }
 
             // streak: count consecutive days back from today that have study time
             val studiedDates = sessions.map { it.date }.toSet()
@@ -84,6 +93,12 @@ class SupabaseStudyRepository : StudyRepository {
                 todaySeconds = todaySeconds,
                 weekSeconds = weekSeconds,
                 streakDays = streak,
+            )
+            StudyStats(
+                todaySeconds = todaySeconds,
+                weekSeconds = weekSeconds,
+                streakDays = streak,
+                lastWeekSeconds = lastWeekSeconds,
             )
         }
     override suspend fun getDailyTotals(): Result<Map<String, Long>> =
