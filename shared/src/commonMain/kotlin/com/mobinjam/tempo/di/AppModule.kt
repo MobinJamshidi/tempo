@@ -5,6 +5,7 @@ import com.mobinjam.tempo.feature.auth.domain.AuthRepository
 import com.mobinjam.tempo.feature.auth.presentation.ForgotPasswordViewModel
 import com.mobinjam.tempo.feature.auth.presentation.LoginViewModel
 import com.mobinjam.tempo.feature.auth.presentation.SignUpViewModel
+import com.mobinjam.tempo.feature.main.StudyLauncher
 import com.mobinjam.tempo.feature.settings.data.SupabaseSettingsRepository
 import com.mobinjam.tempo.feature.settings.domain.SettingsRepository
 import com.mobinjam.tempo.feature.tasks.data.SupabaseTaskRepository
@@ -33,4 +34,5 @@ val appModule = module {
     single<StudyRepository> { SupabaseStudyRepository() }
     viewModel { StudyViewModel(get(), get(), get()) }
     single<SettingsRepository> { SupabaseSettingsRepository() }
+    viewModel { StudyLauncher() }
 }

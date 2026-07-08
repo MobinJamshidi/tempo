@@ -51,6 +51,7 @@ import kotlinx.datetime.plus
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.input.KeyboardType
 
 private val AccentBlue = Color(0xFF3AC6FF)
@@ -60,9 +61,17 @@ private val StopRed = Color(0xFFE57373)
 @Composable
 fun StudyScreen(
     viewModel: StudyViewModel = koinViewModel(),
+    studyLauncher: com.mobinjam.tempo.feature.main.StudyLauncher = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showGoalDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val pending = studyLauncher.consumeCategory()
+        if (pending != null) {
+            viewModel.startWithCategory(pending)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(

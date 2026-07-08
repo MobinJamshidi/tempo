@@ -116,6 +116,17 @@ class StudyViewModel(
         _uiState.update { it.copy(status = TimerStatus.RUNNING, errorMessage = null) }
         startTicking()
     }
+    fun startWithCategory(category: String?) {
+        if (_uiState.value.status == TimerStatus.RUNNING) return
+        _uiState.update {
+            it.copy(
+                selectedCategory = category,
+                status = TimerStatus.RUNNING,
+                errorMessage = null,
+            )
+        }
+        startTicking()
+    }
 
     fun pause() {
         timerJob?.cancel()
