@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobinjam.tempo.core.util.DateUtils
 import com.mobinjam.tempo.core.util.friendlyErrorMessage
+import com.mobinjam.tempo.feature.settings.domain.SettingsRepository
 import com.mobinjam.tempo.feature.study.domain.StudyRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -15,6 +16,8 @@ import kotlinx.coroutines.launch
 
 class StudyViewModel(
     private val studyRepository: StudyRepository,
+    private val settingsRepository: SettingsRepository,
+    private val notifier: com.mobinjam.tempo.core.notification.Notifier,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StudyUiState())
@@ -28,6 +31,12 @@ class StudyViewModel(
 
     fun loadStats() {
         viewModelScope.launch {
+            settingsRepository.getSettings().fold(
+                onSuccess = { settings ->
+                    _uiState.update { it.copy(dailyGoalMinutes = settings.dailyGoalMinutes) }
+                },
+                onFailure = { },
+            )
             studyRepository.getStats().fold(
                 onSuccess = { stats -> _uiState.update { it.copy(stats = stats) } },
                 onFailure = { },
@@ -41,6 +50,51 @@ class StudyViewModel(
                 onFailure = { },
             )
         }
+    }
+
+    private fun loadStatsThenCheckCelebration() {
+        viewModelScope.launch {
+            studyRepository.getStats().fold(
+                onSuccess = { stats ->
+                    _uiState.update { it.copy(stats = stats) }
+                    checkGoalReached(justFinishedSession = true)
+                },
+                onFailure = { },
+            )
+            studyRepository.getDailyTotals().fold(
+                onSuccess = { totals -> _uiState.update { it.copy(dailyTotals = totals) } },
+                onFailure = { },
+            )
+            studyRepository.getDailyBreakdown().fold(
+                onSuccess = { breakdown -> _uiState.update { it.copy(dailyBreakdown = breakdown) } },
+                onFailure = { },
+            )
+        }
+    }
+
+    private fun checkGoalReached(justFinishedSession: Boolean = false) {
+        val s = _uiState.value
+        val goalSeconds = s.dailyGoalMinutes * 60L
+        val reachedNow = goalSeconds > 0 && s.stats.todaySeconds >= goalSeconds
+
+        if (reachedNow && justFinishedSession && !s.goalCelebratedToday) {
+            _uiState.update { it.copy(goalReached = true, goalCelebratedToday = true) }
+            notifier.showGoalReached(
+                title = "Goal reached! 🎉",
+                message = "You hit your daily study goal. Great work!",
+            )
+        }
+    }
+
+    fun setDailyGoal(minutes: Int) {
+        _uiState.update { it.copy(dailyGoalMinutes = minutes) }
+        viewModelScope.launch {
+            settingsRepository.setDailyGoal(minutes)
+        }
+    }
+
+    fun dismissCelebration() {
+        _uiState.update { it.copy(goalReached = false) }
     }
 
     fun onHeatmapDaySelected(date: String) {
@@ -81,7 +135,27 @@ class StudyViewModel(
             while (true) {
                 delay(1000)
                 _uiState.update { it.copy(elapsedSeconds = it.elapsedSeconds + 1) }
+                checkLiveGoal()
             }
+        }
+    }
+
+    private fun checkLiveGoal() {
+        val s = _uiState.value
+        if (s.goalCelebratedToday) return
+
+        val goalSeconds = s.dailyGoalMinutes * 60L
+        if (goalSeconds <= 0) return
+
+        // total study today = already-saved sessions + current running timer
+        val liveTotal = s.stats.todaySeconds + s.elapsedSeconds
+
+        if (liveTotal >= goalSeconds) {
+            _uiState.update { it.copy(goalReached = true, goalCelebratedToday = true) }
+            notifier.showGoalReached(
+                title = "Goal reached! 🎉",
+                message = "You hit your daily study goal. Keep going!",
+            )
         }
     }
 
@@ -108,7 +182,7 @@ class StudyViewModel(
             ).fold(
                 onSuccess = {
                     resetTimer()
-                    loadStats()
+                    loadStatsThenCheckCelebration()
                 },
                 onFailure = { error ->
                     _uiState.update {

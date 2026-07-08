@@ -1,6 +1,9 @@
 package com.mobinjam.tempo.feature.study
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,7 +28,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mobinjam.tempo.core.util.DateUtils
 import com.mobinjam.tempo.feature.study.domain.CategoryTime
@@ -40,10 +46,12 @@ import com.mobinjam.tempo.feature.study.presentation.StudyViewModel
 import com.mobinjam.tempo.feature.study.presentation.TimerStatus
 import com.mobinjam.tempo.feature.tasks.domain.TaskCategory
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 
 private val AccentBlue = Color(0xFF3AC6FF)
 private val CardBg = Color(0xFF1A1F2E)
@@ -54,93 +62,378 @@ fun StudyScreen(
     viewModel: StudyViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showGoalDialog by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
-    ) {
-        Spacer(Modifier.height(40.dp))
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+        ) {
+            Spacer(Modifier.height(40.dp))
 
-        Text(
-            text = "Study",
-            color = MaterialTheme.colorScheme.onBackground,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-        )
-
-        Spacer(Modifier.height(20.dp))
-
-        TimerCard(
-            time = state.formattedTime,
-            status = state.status,
-            category = state.selectedCategory,
-            onStart = viewModel::start,
-            onPause = viewModel::pause,
-            onResume = viewModel::resume,
-            onStop = viewModel::stopAndSave,
-        )
-
-        if (state.errorMessage != null) {
-            Spacer(Modifier.height(12.dp))
             Text(
-                text = state.errorMessage!!,
-                color = StopRed,
-                fontSize = 13.sp,
+                text = "Study",
+                color = MaterialTheme.colorScheme.onBackground,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
             )
-        }
 
-        AnimatedVisibility(visible = state.status == TimerStatus.IDLE) {
-            Column {
-                Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(20.dp))
+
+            TimerCard(
+                time = state.formattedTime,
+                status = state.status,
+                category = state.selectedCategory,
+                onStart = viewModel::start,
+                onPause = viewModel::pause,
+                onResume = viewModel::resume,
+                onStop = viewModel::stopAndSave,
+            )
+
+            if (state.errorMessage != null) {
+                Spacer(Modifier.height(12.dp))
                 Text(
-                    text = "What are you studying?",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = state.errorMessage!!,
+                    color = StopRed,
                     fontSize = 13.sp,
                 )
-                Spacer(Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    TaskCategory.entries.forEach { cat ->
-                        CategoryChip(
-                            label = "${cat.icon} ${cat.label}",
-                            isSelected = state.selectedCategory == cat.label,
-                            onClick = { viewModel.onCategorySelected(cat.label) },
-                        )
+            }
+
+            AnimatedVisibility(visible = state.status == TimerStatus.IDLE) {
+                Column {
+                    Spacer(Modifier.height(20.dp))
+                    Text(
+                        text = "What are you studying?",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        TaskCategory.entries.forEach { cat ->
+                            CategoryChip(
+                                label = "${cat.icon} ${cat.label}",
+                                isSelected = state.selectedCategory == cat.label,
+                                onClick = { viewModel.onCategorySelected(cat.label) },
+                            )
+                        }
                     }
                 }
             }
+
+            Spacer(Modifier.height(24.dp))
+
+            DailyGoalCard(
+                todaySeconds = state.stats.todaySeconds,
+                goalMinutes = state.dailyGoalMinutes,
+                progress = state.goalProgress,
+                reached = state.goalReached,
+                onEditGoal = { showGoalDialog = true },
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            StatsRow(
+                todaySeconds = state.stats.todaySeconds,
+                weekSeconds = state.stats.weekSeconds,
+                streakDays = state.stats.streakDays,
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            Text(
+                text = "Activity",
+                color = MaterialTheme.colorScheme.onBackground,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(12.dp))
+
+            StudyHeatmap(
+                dailyTotals = state.dailyTotals,
+                dailyBreakdown = state.dailyBreakdown,
+                selectedDate = state.selectedHeatmapDate,
+                onDaySelected = viewModel::onHeatmapDaySelected,
+            )
+
+            Spacer(Modifier.height(30.dp))
         }
 
-        Spacer(Modifier.height(30.dp))
+        // celebration overlay when goal reached
+        if (state.goalReached) {
+            CelebrationOverlay(onDismiss = viewModel::dismissCelebration)
+        }
+    }
 
-        StatsRow(
-            todaySeconds = state.stats.todaySeconds,
-            weekSeconds = state.stats.weekSeconds,
-            streakDays = state.stats.streakDays,
+    if (showGoalDialog) {
+        GoalDialog(
+            currentMinutes = state.dailyGoalMinutes,
+            onConfirm = { minutes ->
+                viewModel.setDailyGoal(minutes)
+                showGoalDialog = false
+            },
+            onDismiss = { showGoalDialog = false },
         )
+    }
+}
 
-        Spacer(Modifier.height(24.dp))
+@Composable
+private fun DailyGoalCard(
+    todaySeconds: Long,
+    goalMinutes: Int,
+    progress: Float,
+    reached: Boolean,
+    onEditGoal: () -> Unit,
+) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(500),
+        label = "goalProgress",
+    )
 
-        Text(
-            text = "Activity",
-            color = MaterialTheme.colorScheme.onBackground,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBg)
+            .padding(16.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Daily goal",
+                color = MaterialTheme.colorScheme.onBackground,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = if (reached) "Reached 🎉" else "${goalMinutes}m goal",
+                color = if (reached) AccentBlue else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = "Edit",
+                color = AccentBlue,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onEditGoal() }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+        }
+
         Spacer(Modifier.height(12.dp))
 
-        StudyHeatmap(
-            dailyTotals = state.dailyTotals,
-            dailyBreakdown = state.dailyBreakdown,
-            selectedDate = state.selectedHeatmapDate,
-            onDaySelected = viewModel::onHeatmapDaySelected,
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(10.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xFF20262E)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(animatedProgress)
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(AccentBlue),
+            )
+        }
 
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = "${formatHoursMinutes(todaySeconds)} of ${goalMinutes}m",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 12.sp,
+        )
+    }
+}
+
+@Composable
+private fun GoalDialog(
+    currentMinutes: Int,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val options = listOf(30, 60, 90, 120, 180, 240)
+    var selected by remember { mutableStateOf(currentMinutes) }
+    var customText by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xFF16181C))
+                .padding(20.dp),
+        ) {
+            Text(
+                text = "Set daily goal",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(16.dp))
+
+            options.forEach { m ->
+                val isSel = selected == m && customText.isBlank()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSel) AccentBlue.copy(alpha = 0.15f) else CardBg)
+                        .then(
+                            if (isSel) Modifier.border(1.dp, AccentBlue, RoundedCornerShape(12.dp))
+                            else Modifier
+                        )
+                        .clickable {
+                            selected = m
+                            customText = ""
+                        }
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = goalLabel(m),
+                        color = if (isSel) AccentBlue else MaterialTheme.colorScheme.onBackground,
+                        fontSize = 14.sp,
+                        fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // custom minutes input
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (customText.isNotBlank()) AccentBlue.copy(alpha = 0.15f) else CardBg)
+                    .then(
+                        if (customText.isNotBlank()) Modifier.border(1.dp, AccentBlue, RoundedCornerShape(12.dp))
+                        else Modifier
+                    )
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicTextField(
+                    value = customText,
+                    onValueChange = { input ->
+                        customText = input.filter { it.isDigit() }.take(4)
+                    },
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Color.White,
+                        fontSize = 14.sp,
+                    ),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(AccentBlue),
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                    ),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { inner ->
+                        if (customText.isEmpty()) {
+                            Text(
+                                "Custom minutes...",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 14.sp,
+                            )
+                        }
+                        inner()
+                    },
+                )
+                Text(
+                    text = "min",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            val finalMinutes = customText.toIntOrNull()?.takeIf { it > 0 } ?: selected
+            val isValid = finalMinutes > 0
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isValid) AccentBlue else Color(0xFF2A3040))
+                    .clickable(enabled = isValid) { onConfirm(finalMinutes) }
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("Save", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CelebrationOverlay(onDismiss: () -> Unit) {
+    val scale by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(600, easing = LinearEasing),
+        label = "celebrationScale",
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF16181C))
+                .border(1.dp, AccentBlue, RoundedCornerShape(24.dp))
+                .padding(horizontal = 32.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(text = "🎉", fontSize = 56.sp)
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = "Goal reached!",
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "You hit your study goal today.\nGreat work 👏",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp,
+            )
+            Spacer(Modifier.height(20.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AccentBlue)
+                    .clickable { onDismiss() }
+                    .padding(horizontal = 32.dp, vertical = 12.dp),
+            ) {
+                Text("Nice!", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
     }
 }
 
@@ -352,6 +645,8 @@ private fun StudyHeatmap(
         }
     }
 
+    val weekdayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -359,14 +654,15 @@ private fun StudyHeatmap(
             .background(CardBg)
             .padding(16.dp),
     ) {
+        val scroll = rememberScrollState()
+
         // month labels row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+                .horizontalScroll(scroll),
         ) {
-            // small spacer to align with weekday column
-            Spacer(Modifier.width(32.dp))
+            Spacer(Modifier.width(38.dp))
             var lastMonth = -1
             columns.forEach { week ->
                 val firstOfWeek = week.first()
@@ -376,27 +672,31 @@ private fun StudyHeatmap(
                 } else ""
                 Text(
                     text = label,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 9.sp,
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.width(20.dp),
                 )
             }
         }
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(6.dp))
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+                .horizontalScroll(scroll),
         ) {
-            // weekday labels column
+            // weekday labels column (all 7 days)
             Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.padding(end = 6.dp),
+                modifier = Modifier.padding(end = 8.dp),
             ) {
-                listOf("Mon", "", "Wed", "", "Fri", "", "Sun").forEach { day ->
-                    Box(modifier = Modifier.size(width = 26.dp, height = 16.dp)) {
+                weekdayLabels.forEach { day ->
+                    Box(
+                        modifier = Modifier.size(width = 30.dp, height = 16.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
                         Text(
                             text = day,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -427,7 +727,6 @@ private fun StudyHeatmap(
 
         Spacer(Modifier.height(12.dp))
 
-        // legend
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
@@ -456,7 +755,6 @@ private fun StudyHeatmap(
             )
         }
 
-        // selected day info card
         AnimatedVisibility(visible = selectedDate != null) {
             if (selectedDate != null) {
                 Column {
@@ -603,4 +901,14 @@ private fun monthShort(month: Int): String =
 private fun prettyDate(dateStr: String): String {
     val date = DateUtils.fromDbString(dateStr) ?: return dateStr
     return "${monthShort(date.monthNumber)} ${date.dayOfMonth}, ${date.year}"
+}
+
+private fun goalLabel(minutes: Int): String {
+    val h = minutes / 60
+    val m = minutes % 60
+    return when {
+        h > 0 && m > 0 -> "${h}h ${m}m"
+        h > 0 -> "${h}h"
+        else -> "${m}m"
+    }
 }

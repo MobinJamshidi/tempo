@@ -14,6 +14,9 @@ data class StudyUiState(
     val dailyTotals: Map<String, Long> = emptyMap(),
     val dailyBreakdown: Map<String, List<com.mobinjam.tempo.feature.study.domain.CategoryTime>> = emptyMap(),
     val selectedHeatmapDate: String? = null,
+    val dailyGoalMinutes: Int = 120,
+    val goalReached: Boolean = false,
+    val goalCelebratedToday: Boolean = false,
 ) {
     val formattedTime: String
         get() {
@@ -25,6 +28,14 @@ data class StudyUiState(
             } else {
                 twoDigits(minutes) + ":" + twoDigits(seconds)
             }
+
+        }
+    val goalProgress: Float
+        get() {
+            val goalSeconds = dailyGoalMinutes * 60L
+            if (goalSeconds <= 0) return 0f
+            val p = stats.todaySeconds.toFloat() / goalSeconds
+            return if (p > 1f) 1f else p
         }
 }
 
