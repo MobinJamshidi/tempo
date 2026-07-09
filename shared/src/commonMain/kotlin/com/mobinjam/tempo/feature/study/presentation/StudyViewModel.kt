@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mobinjam.tempo.core.util.DateUtils
 import com.mobinjam.tempo.core.util.friendlyErrorMessage
 import com.mobinjam.tempo.feature.settings.domain.SettingsRepository
+import com.mobinjam.tempo.feature.settings.domain.UserSettings
 import com.mobinjam.tempo.feature.study.domain.StudyRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.minus
 
 class StudyViewModel(
     private val studyRepository: StudyRepository,
@@ -32,18 +35,42 @@ class StudyViewModel(
 
     fun loadStats() {
         viewModelScope.launch {
-            settingsRepository.getSettings().fold(
-                onSuccess = { settings ->
-                    _uiState.update { it.copy(dailyGoalMinutes = settings.dailyGoalMinutes) }
-                },
-                onFailure = { },
-            )
+            // load settings first (for freeze count)
+            val settings = settingsRepository.getSettings().getOrNull()
+            val freezesAvailable = settings?.let { calculateFreezesLeft(it) } ?: 3
+
+            if (settings != null) {
+                _uiState.update { it.copy(dailyGoalMinutes = settings.dailyGoalMinutes) }
+            }
+
+            // load daily totals (study dates)
+            val totals = studyRepository.getDailyTotals().getOrNull().orEmpty()
+            _uiState.update { it.copy(dailyTotals = totals) }
+
+            // compute streak with freezes
+            val studiedDates = totals.keys
+            val (streakWithFreeze, freezesUsedNow) = computeStreakWithFreezes(studiedDates, freezesAvailable)
+
+            _uiState.update { it.copy(freezesLeft = (freezesAvailable - freezesUsedNow).coerceAtLeast(0)) }
+
+            // if freezes were used, save that to the database
+            if (freezesUsedNow > 0) {
+                val today = DateUtils.today()
+                val thisMonday = today.minus(today.dayOfWeek.ordinal, DateTimeUnit.DAY)
+                val existingUsed = if (settings?.freezeWeekStart == DateUtils.toDbString(thisMonday)) {
+                    settings.freezesUsedThisWeek
+                } else 0
+                settingsRepository.updateFreezeUsage(
+                    weekStart = DateUtils.toDbString(thisMonday),
+                    freezesUsed = existingUsed + freezesUsedNow,
+                )
+            }
+
+            // load the rest of the stats
             studyRepository.getStats().fold(
-                onSuccess = { stats -> _uiState.update { it.copy(stats = stats) } },
-                onFailure = { },
-            )
-            studyRepository.getDailyTotals().fold(
-                onSuccess = { totals -> _uiState.update { it.copy(dailyTotals = totals) } },
+                onSuccess = { stats ->
+                    _uiState.update { it.copy(stats = stats.copy(streakDays = streakWithFreeze)) }
+                },
                 onFailure = { },
             )
             studyRepository.getDailyBreakdown().fold(
@@ -53,7 +80,8 @@ class StudyViewModel(
             studyRepository.getBestHour().fold(
                 onSuccess = { best -> _uiState.update { it.copy(bestHour = best) } },
                 onFailure = { },
-            )        }
+            )
+        }
     }
 
     private fun loadStatsThenCheckCelebration() {
@@ -71,6 +99,10 @@ class StudyViewModel(
             )
             studyRepository.getDailyBreakdown().fold(
                 onSuccess = { breakdown -> _uiState.update { it.copy(dailyBreakdown = breakdown) } },
+                onFailure = { },
+            )
+            studyRepository.getBestHour().fold(
+                onSuccess = { best -> _uiState.update { it.copy(bestHour = best) } },
                 onFailure = { },
             )
         }
@@ -113,6 +145,55 @@ class StudyViewModel(
 
     fun onCategorySelected(category: String?) {
         _uiState.update { it.copy(selectedCategory = category) }
+    }
+
+    private fun calculateFreezesLeft(settings: UserSettings): Int {
+        val maxFreezes = 3
+        val today = DateUtils.today()
+        val thisMonday = today.minus(today.dayOfWeek.ordinal, DateTimeUnit.DAY)
+        val thisMondayStr = DateUtils.toDbString(thisMonday)
+
+        return if (settings.freezeWeekStart != thisMondayStr) {
+            maxFreezes
+        } else {
+            (maxFreezes - settings.freezesUsedThisWeek).coerceAtLeast(0)
+        }
+    }
+
+    private fun computeStreakWithFreezes(
+        studiedDates: Set<String>,
+        currentFreezesAvailable: Int,
+    ): Pair<Int, Int> {
+        val today = DateUtils.today()
+        var streak = 0
+        var freezesUsed = 0
+        var freezesLeft = currentFreezesAvailable
+        var cursor = today
+
+        val todayStr = DateUtils.toDbString(today)
+        if (todayStr in studiedDates) {
+            streak++
+        }
+        cursor = cursor.minus(1, DateTimeUnit.DAY)
+
+        while (true) {
+            val cursorStr = DateUtils.toDbString(cursor)
+            if (cursorStr in studiedDates) {
+                streak++
+            } else {
+                if (freezesLeft > 0) {
+                    freezesLeft--
+                    freezesUsed++
+                } else {
+                    break
+                }
+            }
+            cursor = cursor.minus(1, DateTimeUnit.DAY)
+
+            if (streak + freezesUsed > 365) break
+        }
+
+        return streak to freezesUsed
     }
 
     fun start() {

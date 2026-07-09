@@ -18,6 +18,7 @@ data class StudyUiState(
     val goalReached: Boolean = false,
     val goalCelebratedToday: Boolean = false,
     val bestHour: com.mobinjam.tempo.feature.study.domain.BestHour? = null,
+    val freezesLeft: Int = 3,
 ) {
     val formattedTime: String
         get() {

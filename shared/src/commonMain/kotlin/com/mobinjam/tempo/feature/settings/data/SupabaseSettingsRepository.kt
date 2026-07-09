@@ -17,7 +17,11 @@ class SupabaseSettingsRepository : SettingsRepository {
                 .decodeList<UserSettingsDto>()
 
             val dto = rows.firstOrNull() ?: UserSettingsDto()
-            UserSettings(dailyGoalMinutes = dto.dailyGoalMinutes)
+            UserSettings(
+                dailyGoalMinutes = dto.dailyGoalMinutes,
+                freezesUsedThisWeek = dto.freezesUsedThisWeek,
+                freezeWeekStart = dto.freezeWeekStart,
+            )
         }
 
     override suspend fun setDailyGoal(minutes: Int): Result<Unit> =
@@ -34,4 +38,19 @@ class SupabaseSettingsRepository : SettingsRepository {
             )
             Unit
         }
+    override suspend fun updateFreezeUsage(weekStart: String, freezesUsed: Int): Result<Unit> =
+        runCatching {
+            val userId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
+                ?: throw IllegalStateException("Not logged in")
+
+            db.from("user_settings").upsert(
+                buildMap {
+                    put("user_id", userId)
+                    put("freeze_week_start", weekStart)
+                    put("freezes_used_this_week", freezesUsed)
+                }
+            )
+            Unit
+        }
+
 }

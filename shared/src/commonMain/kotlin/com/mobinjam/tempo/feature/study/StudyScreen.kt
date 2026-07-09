@@ -150,8 +150,8 @@ fun StudyScreen(
                 todaySeconds = state.stats.todaySeconds,
                 weekSeconds = state.stats.weekSeconds,
                 streakDays = state.stats.streakDays,
+                freezesLeft = state.freezesLeft,
             )
-
             Spacer(Modifier.height(12.dp))
 
             WeekComparisonCard(
@@ -597,8 +597,8 @@ private fun StatsRow(
     todaySeconds: Long,
     weekSeconds: Long,
     streakDays: Int,
+    freezesLeft: Int,
 ) {
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -617,6 +617,21 @@ private fun StatsRow(
             modifier = Modifier.weight(1f),
             value = if (streakDays > 0) "$streakDays 🔥" else "0",
             label = "Day streak",
+            subContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "❄️",
+                        fontSize = 9.sp,
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        text = "$freezesLeft left",
+                        color = AccentBlue,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            },
         )
     }
 }
@@ -626,6 +641,7 @@ private fun StatCard(
     modifier: Modifier = Modifier,
     value: String,
     label: String,
+    subContent: (@Composable () -> Unit)? = null,
 ) {
     Column(
         modifier = modifier
@@ -646,6 +662,10 @@ private fun StatCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp,
         )
+        if (subContent != null) {
+            Spacer(Modifier.height(4.dp))
+            subContent()
+        }
     }
 }
 
