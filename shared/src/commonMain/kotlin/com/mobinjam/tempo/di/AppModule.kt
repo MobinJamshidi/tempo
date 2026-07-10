@@ -18,6 +18,10 @@ import com.mobinjam.tempo.feature.splash.SplashViewModel
 import com.mobinjam.tempo.feature.study.data.SupabaseStudyRepository
 import com.mobinjam.tempo.feature.study.domain.StudyRepository
 import com.mobinjam.tempo.feature.study.presentation.StudyViewModel
+import com.mobinjam.tempo.feature.social.data.SupabaseProfileRepository
+import com.mobinjam.tempo.feature.social.domain.ProfileRepository
+import com.mobinjam.tempo.feature.main.MainViewModel
+import com.mobinjam.tempo.feature.social.presentation.FriendsViewModel
 
 val appModule = module {
 
@@ -37,4 +41,11 @@ val appModule = module {
     single<SettingsRepository> { SupabaseSettingsRepository() }
     viewModel { StudyLauncher() }
     viewModel { ProfileViewModel(get(), get()) }
+
+    single<ProfileRepository> { SupabaseProfileRepository() }
+
+    viewModel { MainViewModel(get()) }
+
+    viewModel { FriendsViewModel(get()) }
+
 }

@@ -1,6 +1,7 @@
 package com.mobinjam.tempo.feature.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +47,12 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var showFriends by remember { mutableStateOf(false) }
+
+    if (showFriends) {
+        com.mobinjam.tempo.feature.social.FriendsScreen()
+        return
+    }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
@@ -58,12 +68,32 @@ fun ProfileScreen(
     ) {
         item(span = { GridItemSpan(3) }) {
             Column {
-                Text(
-                    text = "Profile",
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Profile",
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(AccentBlue.copy(alpha = 0.15f))
+                            .clickable { showFriends = true }
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                    ) {
+                        Text(
+                            text = "Friends",
+                            color = AccentBlue,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
                 Spacer(Modifier.height(16.dp))
 
                 Row(

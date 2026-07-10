@@ -52,6 +52,7 @@ private enum class Tab(val label: String) {
 @Composable
 fun MainScreen(
     studyLauncher: StudyLauncher = koinViewModel(),
+    mainViewModel: MainViewModel = koinViewModel(),
 ) {
     var selectedTab by remember { mutableStateOf(Tab.Tasks) }
 
