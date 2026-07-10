@@ -23,6 +23,7 @@ import com.mobinjam.tempo.feature.social.domain.ProfileRepository
 import com.mobinjam.tempo.feature.main.MainViewModel
 import com.mobinjam.tempo.feature.social.presentation.FriendsViewModel
 import com.mobinjam.tempo.feature.social.presentation.ActiveFriendsViewModel
+import com.mobinjam.tempo.feature.social.presentation.GlobalStudyViewModel
 
 val appModule = module {
 
@@ -41,8 +42,7 @@ val appModule = module {
     viewModel { StudyViewModel(get(), get(), get(), get()) }
     single<SettingsRepository> { SupabaseSettingsRepository() }
     viewModel { StudyLauncher() }
-    viewModel { ProfileViewModel(get(), get()) }
-
+    viewModel { ProfileViewModel(get(), get(), get()) }
     single<ProfileRepository> { SupabaseProfileRepository() }
 
     viewModel { MainViewModel(get()) }
@@ -50,5 +50,7 @@ val appModule = module {
     viewModel { FriendsViewModel(get()) }
 
     viewModel { ActiveFriendsViewModel(get()) }
+
+    viewModel { GlobalStudyViewModel(get()) }
 
 }

@@ -38,7 +38,9 @@ fun App() {
             AppScreen.ForgotPassword -> ForgotPasswordScreen(
                 onBackToLogin = { screen = AppScreen.Login },
             )
-            AppScreen.Main -> MainScreen()
+            AppScreen.Main -> MainScreen(
+                onLogout = { screen = AppScreen.Login },
+            )
         }
     }
 }

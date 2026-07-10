@@ -51,6 +51,7 @@ private enum class Tab(val label: String) {
 
 @Composable
 fun MainScreen(
+    onLogout: () -> Unit = {},
     studyLauncher: StudyLauncher = koinViewModel(),
     mainViewModel: MainViewModel = koinViewModel(),
 ) {
@@ -82,8 +83,7 @@ fun MainScreen(
             when (selectedTab) {
                 Tab.Tasks -> TasksScreen()
                 Tab.Study -> StudyScreen()
-                Tab.Profile -> ProfileScreen()
-            }
+                Tab.Profile -> ProfileScreen(onLogout = onLogout)            }
         }
 
         GlassNavBar(

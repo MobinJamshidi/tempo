@@ -23,6 +23,9 @@ interface ProfileRepository {
     suspend fun endActiveSession(): Result<Unit>
 
     suspend fun getActiveFriends(): Result<List<ActiveFriend>>
+
+    // get everyone currently studying (global)
+    suspend fun getGlobalActive(): Result<List<ActiveFriend>>
 }
 
 data class ActiveFriend(

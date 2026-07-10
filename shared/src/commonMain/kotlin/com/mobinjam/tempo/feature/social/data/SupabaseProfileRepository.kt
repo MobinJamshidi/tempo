@@ -243,4 +243,39 @@ class SupabaseProfileRepository : ProfileRepository {
             }
         }
 
+    override suspend fun getGlobalActive(): Result<List<com.mobinjam.tempo.feature.social.domain.ActiveFriend>> =
+        runCatching {
+            val myId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
+
+            // all active sessions
+            val activeSessions = db.from("active_sessions")
+                .select()
+                .decodeList<ActiveSessionDto>()
+
+            if (activeSessions.isEmpty()) return@runCatching emptyList()
+
+            // fetch profiles of all active users
+            val profiles = db.from("profiles")
+                .select {
+                    filter { isIn("id", activeSessions.map { s -> s.userId }) }
+                }
+                .decodeList<ProfileDto>()
+                .associateBy { it.id }
+
+            activeSessions.mapNotNull { session ->
+                // skip myself in the global list
+                if (session.userId == myId) return@mapNotNull null
+                val p = profiles[session.userId] ?: return@mapNotNull null
+                com.mobinjam.tempo.feature.social.domain.ActiveFriend(
+                    profile = com.mobinjam.tempo.feature.social.domain.Profile(
+                        id = p.id,
+                        username = p.username,
+                        displayName = p.displayName,
+                    ),
+                    category = session.category,
+                    startedAt = session.startedAt,
+                )
+            }
+        }
+
 }

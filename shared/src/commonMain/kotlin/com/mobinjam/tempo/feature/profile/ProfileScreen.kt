@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -41,9 +42,11 @@ import org.koin.compose.viewmodel.koinViewModel
 
 private val AccentBlue = Color(0xFF3AC6FF)
 private val CardBg = Color(0xFF1A1F2E)
+private val LogoutRed = Color(0xFFE57373)
 
 @Composable
 fun ProfileScreen(
+    onLogout: () -> Unit = {},
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -89,6 +92,21 @@ fun ProfileScreen(
                         Text(
                             text = "Friends",
                             color = AccentBlue,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(LogoutRed.copy(alpha = 0.15f))
+                            .clickable { viewModel.logout(onLogout) }
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                    ) {
+                        Text(
+                            text = "Logout",
+                            color = LogoutRed,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -167,7 +185,6 @@ private fun BadgeCell(
                 unlocked = unlocked,
                 size = 64,
             )
-            // small check or lock marker at corner
             Box(
                 modifier = Modifier
                     .size(20.dp)

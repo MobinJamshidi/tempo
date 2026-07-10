@@ -140,6 +140,10 @@ fun StudyScreen(
 
             Spacer(Modifier.height(24.dp))
 
+            com.mobinjam.tempo.feature.social.GlobalStudySection()
+
+            Spacer(Modifier.height(24.dp))
+
             DailyGoalCard(
                 todaySeconds = state.stats.todaySeconds,
                 goalMinutes = state.dailyGoalMinutes,

@@ -20,6 +20,7 @@ data class ProfileUiState(
 class ProfileViewModel(
     private val studyRepository: StudyRepository,
     private val settingsRepository: SettingsRepository,
+    private val authRepository: com.mobinjam.tempo.feature.auth.domain.AuthRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -27,6 +28,13 @@ class ProfileViewModel(
 
     init {
         loadBadges()
+    }
+
+    fun logout(onDone: () -> Unit) {
+        viewModelScope.launch {
+            authRepository.signOut()
+            onDone()
+        }
     }
 
     fun loadBadges() {
