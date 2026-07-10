@@ -140,4 +140,23 @@ class SupabaseStudyRepository : StudyRepository {
                 null
             }
         }
+    override suspend fun getFocusScore(): Result<Int> =
+        getSessions().map { sessions ->
+            val weekDates = com.mobinjam.tempo.core.util.DateUtils.last7Days()
+                .map { com.mobinjam.tempo.core.util.DateUtils.toDbString(it) }
+                .toSet()
+
+            val recentSessions = sessions.filter { it.date in weekDates }
+            if (recentSessions.isEmpty()) return@map 0
+
+            // average session length in minutes
+            val avgMinutes = recentSessions.sumOf { it.durationSeconds }.toDouble() /
+                    recentSessions.size / 60.0
+
+            // map average length to a 0..100 score
+            // 90+ minutes avg = 100, scales down linearly
+            val score = ((avgMinutes / 90.0) * 100).coerceIn(0.0, 100.0)
+            score.toInt()
+        }
+
 }

@@ -6,6 +6,7 @@ import com.mobinjam.tempo.core.util.DateUtils
 import com.mobinjam.tempo.core.util.friendlyErrorMessage
 import com.mobinjam.tempo.feature.settings.domain.SettingsRepository
 import com.mobinjam.tempo.feature.settings.domain.UserSettings
+import com.mobinjam.tempo.feature.study.domain.StudyDnaAnalyzer
 import com.mobinjam.tempo.feature.study.domain.StudyRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -35,7 +36,6 @@ class StudyViewModel(
 
     fun loadStats() {
         viewModelScope.launch {
-            // load settings first (for freeze count)
             val settings = settingsRepository.getSettings().getOrNull()
             val freezesAvailable = settings?.let { calculateFreezesLeft(it) } ?: 3
 
@@ -43,17 +43,14 @@ class StudyViewModel(
                 _uiState.update { it.copy(dailyGoalMinutes = settings.dailyGoalMinutes) }
             }
 
-            // load daily totals (study dates)
             val totals = studyRepository.getDailyTotals().getOrNull().orEmpty()
             _uiState.update { it.copy(dailyTotals = totals) }
 
-            // compute streak with freezes
             val studiedDates = totals.keys
             val (streakWithFreeze, freezesUsedNow) = computeStreakWithFreezes(studiedDates, freezesAvailable)
 
             _uiState.update { it.copy(freezesLeft = (freezesAvailable - freezesUsedNow).coerceAtLeast(0)) }
 
-            // if freezes were used, save that to the database
             if (freezesUsedNow > 0) {
                 val today = DateUtils.today()
                 val thisMonday = today.minus(today.dayOfWeek.ordinal, DateTimeUnit.DAY)
@@ -66,7 +63,6 @@ class StudyViewModel(
                 )
             }
 
-            // load the rest of the stats
             studyRepository.getStats().fold(
                 onSuccess = { stats ->
                     _uiState.update { it.copy(stats = stats.copy(streakDays = streakWithFreeze)) }
@@ -81,28 +77,28 @@ class StudyViewModel(
                 onSuccess = { best -> _uiState.update { it.copy(bestHour = best) } },
                 onFailure = { },
             )
+            studyRepository.getFocusScore().fold(
+                onSuccess = { score -> _uiState.update { it.copy(focusScore = score) } },
+                onFailure = { },
+            )
+            studyRepository.getSessions().fold(
+                onSuccess = { sessions ->
+                    val dna = StudyDnaAnalyzer.analyze(sessions)
+                    _uiState.update { it.copy(studyDna = dna) }
+                },
+                onFailure = { },
+            )
         }
     }
 
     private fun loadStatsThenCheckCelebration() {
+        loadStats()
         viewModelScope.launch {
             studyRepository.getStats().fold(
                 onSuccess = { stats ->
-                    _uiState.update { it.copy(stats = stats) }
+                    _uiState.update { it.copy(stats = it.stats.copy()) }
                     checkGoalReached(justFinishedSession = true)
                 },
-                onFailure = { },
-            )
-            studyRepository.getDailyTotals().fold(
-                onSuccess = { totals -> _uiState.update { it.copy(dailyTotals = totals) } },
-                onFailure = { },
-            )
-            studyRepository.getDailyBreakdown().fold(
-                onSuccess = { breakdown -> _uiState.update { it.copy(dailyBreakdown = breakdown) } },
-                onFailure = { },
-            )
-            studyRepository.getBestHour().fold(
-                onSuccess = { best -> _uiState.update { it.copy(bestHour = best) } },
                 onFailure = { },
             )
         }

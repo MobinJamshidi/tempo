@@ -165,6 +165,20 @@ fun StudyScreen(
                     hour = state.bestHour!!.hour,
                     totalSeconds = state.bestHour!!.totalSeconds,
                 )
+                Spacer(Modifier.height(12.dp))
+                FocusScoreCard(score = state.focusScore)
+            }
+
+            if (state.studyDna != null) {
+                Spacer(Modifier.height(24.dp))
+                Text(
+                    text = "Your Study DNA 🧬",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(12.dp))
+                StudyDnaCard(traits = state.studyDna!!)
             }
 
             Spacer(Modifier.height(24.dp))
@@ -1094,5 +1108,150 @@ private fun hourEmoji(hour: Int): String {
         in 12..16 -> "☀️"
         in 17..20 -> "🌇"
         else -> "🌙"
+    }
+}
+
+@Composable
+private fun FocusScoreCard(score: Int) {
+    val animatedScore by animateFloatAsState(
+        targetValue = score / 100f,
+        animationSpec = tween(600),
+        label = "focusScore",
+    )
+
+    val label = when {
+        score >= 80 -> "Deep focus 🧠"
+        score >= 50 -> "Good focus"
+        score >= 25 -> "Building focus"
+        else -> "Getting started"
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBg)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // circular progress ring
+        Box(
+            modifier = Modifier.size(64.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            androidx.compose.foundation.Canvas(modifier = Modifier.size(64.dp)) {
+                val stroke = 7.dp.toPx()
+                val diameter = size.minDimension - stroke
+                val topLeft = androidx.compose.ui.geometry.Offset(stroke / 2, stroke / 2)
+                val arcSize = androidx.compose.ui.geometry.Size(diameter, diameter)
+
+                // background ring
+                drawArc(
+                    color = Color(0xFF20262E),
+                    startAngle = -90f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = stroke,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    ),
+                )
+                // progress ring
+                drawArc(
+                    color = AccentBlue,
+                    startAngle = -90f,
+                    sweepAngle = 360f * animatedScore,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = stroke,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    ),
+                )
+            }
+            Text(
+                text = "$score",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+
+        Spacer(Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Deep Focus Score",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = label,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Based on your session lengths this week",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StudyDnaCard(
+    traits: List<com.mobinjam.tempo.feature.study.domain.StudyDnaTrait>,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBg)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        traits.forEach { trait ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(AccentBlue.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    com.mobinjam.tempo.feature.study.presentation.DnaTraitIcon(label = trait.label)
+                }
+
+                Spacer(Modifier.width(14.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = trait.label,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = trait.value,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = trait.reason,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                    )
+                }
+            }
+        }
     }
 }

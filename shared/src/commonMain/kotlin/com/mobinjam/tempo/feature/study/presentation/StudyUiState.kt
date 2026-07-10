@@ -19,6 +19,8 @@ data class StudyUiState(
     val goalCelebratedToday: Boolean = false,
     val bestHour: com.mobinjam.tempo.feature.study.domain.BestHour? = null,
     val freezesLeft: Int = 3,
+    val focusScore: Int = 0,
+    val studyDna: List<com.mobinjam.tempo.feature.study.domain.StudyDnaTrait>? = null,
 ) {
     val formattedTime: String
         get() {
