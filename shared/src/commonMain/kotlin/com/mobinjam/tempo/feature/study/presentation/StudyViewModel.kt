@@ -22,6 +22,7 @@ class StudyViewModel(
     private val studyRepository: StudyRepository,
     private val settingsRepository: SettingsRepository,
     private val notifier: com.mobinjam.tempo.core.notification.Notifier,
+    private val profileRepository: com.mobinjam.tempo.feature.social.domain.ProfileRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StudyUiState())
@@ -197,6 +198,9 @@ class StudyViewModel(
         _uiState.update { it.copy(status = TimerStatus.RUNNING, errorMessage = null) }
         sessionStartedAt = DateUtils.nowTimestamp()
         startTicking()
+        viewModelScope.launch {
+            profileRepository.startActiveSession(_uiState.value.selectedCategory)
+        }
     }
 
     fun startWithCategory(category: String?) {
@@ -210,6 +214,9 @@ class StudyViewModel(
         }
         sessionStartedAt = DateUtils.nowTimestamp()
         startTicking()
+        viewModelScope.launch {
+            profileRepository.startActiveSession(category)
+        }
     }
 
     fun pause() {
@@ -301,6 +308,9 @@ class StudyViewModel(
                 status = TimerStatus.IDLE,
                 isSaving = false,
             )
+        }
+        viewModelScope.launch {
+            profileRepository.endActiveSession()
         }
     }
 

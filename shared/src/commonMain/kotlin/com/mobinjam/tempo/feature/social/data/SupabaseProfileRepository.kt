@@ -170,4 +170,77 @@ class SupabaseProfileRepository : ProfileRepository {
             }
         }
 
+    override suspend fun startActiveSession(category: String?): Result<Unit> =
+        runCatching {
+            val myId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
+                ?: throw IllegalStateException("Not logged in")
+
+            db.from("active_sessions").upsert(
+                buildMap {
+                    put("user_id", myId)
+                    put("started_at", com.mobinjam.tempo.core.util.DateUtils.nowTimestamp())
+                    if (category != null) put("category", category)
+                }
+            )
+            Unit
+        }
+
+    override suspend fun endActiveSession(): Result<Unit> =
+        runCatching {
+            val myId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
+                ?: throw IllegalStateException("Not logged in")
+
+            db.from("active_sessions").delete {
+                filter { eq("user_id", myId) }
+            }
+            Unit
+        }
+
+    override suspend fun getActiveFriends(): Result<List<com.mobinjam.tempo.feature.social.domain.ActiveFriend>> =
+        runCatching {
+            val myId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
+                ?: throw IllegalStateException("Not logged in")
+
+            // get my accepted friendships
+            val friendships = db.from("friendships")
+                .select()
+                .decodeList<FriendshipDto>()
+                .filter { (it.requesterId == myId || it.addresseeId == myId) && it.status == "accepted" }
+
+            val friendIds = friendships.map {
+                if (it.requesterId == myId) it.addresseeId else it.requesterId
+            }.distinct()
+
+            if (friendIds.isEmpty()) return@runCatching emptyList()
+
+            // get active sessions of those friends
+            val activeSessions = db.from("active_sessions")
+                .select()
+                .decodeList<ActiveSessionDto>()
+                .filter { it.userId in friendIds }
+
+            if (activeSessions.isEmpty()) return@runCatching emptyList()
+
+            // fetch their profiles
+            val profiles = db.from("profiles")
+                .select {
+                    filter { isIn("id", activeSessions.map { s -> s.userId }) }
+                }
+                .decodeList<ProfileDto>()
+                .associateBy { it.id }
+
+            activeSessions.mapNotNull { session ->
+                val p = profiles[session.userId] ?: return@mapNotNull null
+                com.mobinjam.tempo.feature.social.domain.ActiveFriend(
+                    profile = com.mobinjam.tempo.feature.social.domain.Profile(
+                        id = p.id,
+                        username = p.username,
+                        displayName = p.displayName,
+                    ),
+                    category = session.category,
+                    startedAt = session.startedAt,
+                )
+            }
+        }
+
 }
