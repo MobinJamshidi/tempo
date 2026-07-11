@@ -247,23 +247,40 @@ class SupabaseProfileRepository : ProfileRepository {
         runCatching {
             val myId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
 
-            // all active sessions
             val activeSessions = db.from("active_sessions")
                 .select()
                 .decodeList<ActiveSessionDto>()
 
             if (activeSessions.isEmpty()) return@runCatching emptyList()
 
-            // fetch profiles of all active users
+            val activeUserIds = activeSessions.map { it.userId }
+
+            // profiles of active users
             val profiles = db.from("profiles")
                 .select {
-                    filter { isIn("id", activeSessions.map { s -> s.userId }) }
+                    filter { isIn("id", activeUserIds) }
                 }
                 .decodeList<ProfileDto>()
                 .associateBy { it.id }
 
+            // completed sessions today for those users
+            val today = com.mobinjam.tempo.core.util.DateUtils.toDbString(
+                com.mobinjam.tempo.core.util.DateUtils.today()
+            )
+            val todaySessions = db.from("study_sessions")
+                .select {
+                    filter {
+                        isIn("user_id", activeUserIds)
+                        eq("date", today)
+                    }
+                }
+                .decodeList<com.mobinjam.tempo.feature.study.data.StudySessionDto>()
+
+            val todayTotals = todaySessions
+                .groupBy { it.userId }
+                .mapValues { (_, list) -> list.sumOf { it.durationSeconds } }
+
             activeSessions.mapNotNull { session ->
-                // skip myself in the global list
                 if (session.userId == myId) return@mapNotNull null
                 val p = profiles[session.userId] ?: return@mapNotNull null
                 com.mobinjam.tempo.feature.social.domain.ActiveFriend(
@@ -274,6 +291,7 @@ class SupabaseProfileRepository : ProfileRepository {
                     ),
                     category = session.category,
                     startedAt = session.startedAt,
+                    todaySecondsBefore = todayTotals[session.userId] ?: 0L,
                 )
             }
         }

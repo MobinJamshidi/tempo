@@ -65,12 +65,20 @@ fun StudyScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showGoalDialog by remember { mutableStateOf(false) }
+    var showGlobalStudy by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val pending = studyLauncher.consumeCategory()
         if (pending != null) {
             viewModel.startWithCategory(pending)
         }
+    }
+
+    if (showGlobalStudy) {
+        com.mobinjam.tempo.feature.social.GlobalStudyScreen(
+            onBack = { showGlobalStudy = false },
+        )
+        return
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -140,8 +148,9 @@ fun StudyScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            com.mobinjam.tempo.feature.social.GlobalStudySection()
-
+            com.mobinjam.tempo.feature.social.GlobalStudySection(
+                onOpenGlobal = { showGlobalStudy = true },
+            )
             Spacer(Modifier.height(24.dp))
 
             DailyGoalCard(

@@ -28,8 +28,10 @@ interface ProfileRepository {
     suspend fun getGlobalActive(): Result<List<ActiveFriend>>
 }
 
+
 data class ActiveFriend(
     val profile: Profile,
     val category: String?,
     val startedAt: String,
+    val todaySecondsBefore: Long = 0,
 )

@@ -9,6 +9,7 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.minus
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.toInstant
 
 object DateUtils {
 
@@ -103,6 +104,24 @@ object DateUtils {
             timePart.substringBefore(":").toIntOrNull()
         } catch (e: Exception) {
             null
+        }
+    }
+
+    // seconds elapsed since a given timestamp string
+    fun secondsSince(timestamp: String?): Long {
+        if (timestamp.isNullOrBlank()) return 0
+        return try {
+            val normalized = timestamp
+                .replace(" ", "T")
+                .substringBefore(".")
+                .substringBefore("+")
+                .trim()
+            val started = kotlinx.datetime.LocalDateTime.parse(normalized)
+                .toInstant(TimeZone.currentSystemDefault())
+            val now = kotlin.time.Clock.System.now()
+            (now - started).inWholeSeconds.coerceAtLeast(0)
+        } catch (e: Exception) {
+            0
         }
     }
 }
