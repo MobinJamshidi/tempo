@@ -1,11 +1,15 @@
 package com.mobinjam.tempo.feature.social.data
 
 import com.mobinjam.tempo.core.data.remote.SupabaseClientProvider
+import com.mobinjam.tempo.feature.social.domain.ActiveFriend
+import com.mobinjam.tempo.feature.social.domain.FriendProfile
+import com.mobinjam.tempo.feature.social.domain.FriendStatus
 import com.mobinjam.tempo.feature.social.domain.Profile
 import com.mobinjam.tempo.feature.social.domain.ProfileRepository
+import com.mobinjam.tempo.feature.study.data.StudySessionDto
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.filter.TextSearchType
+import kotlinx.serialization.json.JsonPrimitive
 
 class SupabaseProfileRepository : ProfileRepository {
 
@@ -56,15 +60,15 @@ class SupabaseProfileRepository : ProfileRepository {
                 .decodeList<ProfileDto>()
 
             rows
-                .filter { it.id != myId } // don't show myself in search
+                .filter { it.id != myId }
                 .map { Profile(id = it.id, username = it.username, displayName = it.displayName) }
         }
+
     override suspend fun ensureProfileExists(): Result<Unit> =
         runCatching {
             val user = SupabaseClientProvider.client.auth.currentUserOrNull()
                 ?: throw IllegalStateException("Not logged in")
 
-            // check if profile already exists
             val existing = db.from("profiles")
                 .select {
                     filter { eq("id", user.id) }
@@ -74,9 +78,10 @@ class SupabaseProfileRepository : ProfileRepository {
             if (existing.isNotEmpty()) return@runCatching Unit
 
             // read username from auth metadata
-            val username = user.userMetadata?.get("username")
-                ?.toString()
-                ?.trim('"')
+            val username = user.userMetadata
+                ?.get("username")
+                ?.let { element -> (element as? JsonPrimitive)?.content }
+                ?.takeIf { it.isNotBlank() }
                 ?: "user_${user.id.take(6)}"
 
             db.from("profiles").insert(
@@ -121,12 +126,11 @@ class SupabaseProfileRepository : ProfileRepository {
             Unit
         }
 
-    override suspend fun getFriends(): Result<List<com.mobinjam.tempo.feature.social.domain.FriendProfile>> =
+    override suspend fun getFriends(): Result<List<FriendProfile>> =
         runCatching {
             val myId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
                 ?: throw IllegalStateException("Not logged in")
 
-            // get all friendships involving me
             val friendships = db.from("friendships")
                 .select()
                 .decodeList<FriendshipDto>()
@@ -134,12 +138,10 @@ class SupabaseProfileRepository : ProfileRepository {
 
             if (friendships.isEmpty()) return@runCatching emptyList()
 
-            // collect the other user ids
             val otherIds = friendships.map {
                 if (it.requesterId == myId) it.addresseeId else it.requesterId
             }.distinct()
 
-            // fetch their profiles
             val profiles = db.from("profiles")
                 .select {
                     filter { isIn("id", otherIds) }
@@ -147,19 +149,18 @@ class SupabaseProfileRepository : ProfileRepository {
                 .decodeList<ProfileDto>()
                 .associateBy { it.id }
 
-            // build FriendProfile list with status
             friendships.mapNotNull { f ->
                 val otherId = if (f.requesterId == myId) f.addresseeId else f.requesterId
                 val profileDto = profiles[otherId] ?: return@mapNotNull null
 
                 val status = when {
-                    f.status == "accepted" -> com.mobinjam.tempo.feature.social.domain.FriendStatus.FRIENDS
-                    f.requesterId == myId -> com.mobinjam.tempo.feature.social.domain.FriendStatus.PENDING_SENT
-                    else -> com.mobinjam.tempo.feature.social.domain.FriendStatus.PENDING_RECEIVED
+                    f.status == "accepted" -> FriendStatus.FRIENDS
+                    f.requesterId == myId -> FriendStatus.PENDING_SENT
+                    else -> FriendStatus.PENDING_RECEIVED
                 }
 
-                com.mobinjam.tempo.feature.social.domain.FriendProfile(
-                    profile = com.mobinjam.tempo.feature.social.domain.Profile(
+                FriendProfile(
+                    profile = Profile(
                         id = profileDto.id,
                         username = profileDto.username,
                         displayName = profileDto.displayName,
@@ -196,12 +197,11 @@ class SupabaseProfileRepository : ProfileRepository {
             Unit
         }
 
-    override suspend fun getActiveFriends(): Result<List<com.mobinjam.tempo.feature.social.domain.ActiveFriend>> =
+    override suspend fun getActiveFriends(): Result<List<ActiveFriend>> =
         runCatching {
             val myId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
                 ?: throw IllegalStateException("Not logged in")
 
-            // get my accepted friendships
             val friendships = db.from("friendships")
                 .select()
                 .decodeList<FriendshipDto>()
@@ -213,7 +213,6 @@ class SupabaseProfileRepository : ProfileRepository {
 
             if (friendIds.isEmpty()) return@runCatching emptyList()
 
-            // get active sessions of those friends
             val activeSessions = db.from("active_sessions")
                 .select()
                 .decodeList<ActiveSessionDto>()
@@ -221,7 +220,6 @@ class SupabaseProfileRepository : ProfileRepository {
 
             if (activeSessions.isEmpty()) return@runCatching emptyList()
 
-            // fetch their profiles
             val profiles = db.from("profiles")
                 .select {
                     filter { isIn("id", activeSessions.map { s -> s.userId }) }
@@ -231,8 +229,8 @@ class SupabaseProfileRepository : ProfileRepository {
 
             activeSessions.mapNotNull { session ->
                 val p = profiles[session.userId] ?: return@mapNotNull null
-                com.mobinjam.tempo.feature.social.domain.ActiveFriend(
-                    profile = com.mobinjam.tempo.feature.social.domain.Profile(
+                ActiveFriend(
+                    profile = Profile(
                         id = p.id,
                         username = p.username,
                         displayName = p.displayName,
@@ -243,7 +241,7 @@ class SupabaseProfileRepository : ProfileRepository {
             }
         }
 
-    override suspend fun getGlobalActive(): Result<List<com.mobinjam.tempo.feature.social.domain.ActiveFriend>> =
+    override suspend fun getGlobalActive(): Result<List<ActiveFriend>> =
         runCatching {
             val myId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
 
@@ -255,7 +253,6 @@ class SupabaseProfileRepository : ProfileRepository {
 
             val activeUserIds = activeSessions.map { it.userId }
 
-            // profiles of active users
             val profiles = db.from("profiles")
                 .select {
                     filter { isIn("id", activeUserIds) }
@@ -263,7 +260,6 @@ class SupabaseProfileRepository : ProfileRepository {
                 .decodeList<ProfileDto>()
                 .associateBy { it.id }
 
-            // completed sessions today for those users
             val today = com.mobinjam.tempo.core.util.DateUtils.toDbString(
                 com.mobinjam.tempo.core.util.DateUtils.today()
             )
@@ -274,7 +270,7 @@ class SupabaseProfileRepository : ProfileRepository {
                         eq("date", today)
                     }
                 }
-                .decodeList<com.mobinjam.tempo.feature.study.data.StudySessionDto>()
+                .decodeList<StudySessionDto>()
 
             val todayTotals = todaySessions
                 .groupBy { it.userId }
@@ -283,8 +279,8 @@ class SupabaseProfileRepository : ProfileRepository {
             activeSessions.mapNotNull { session ->
                 if (session.userId == myId) return@mapNotNull null
                 val p = profiles[session.userId] ?: return@mapNotNull null
-                com.mobinjam.tempo.feature.social.domain.ActiveFriend(
-                    profile = com.mobinjam.tempo.feature.social.domain.Profile(
+                ActiveFriend(
+                    profile = Profile(
                         id = p.id,
                         username = p.username,
                         displayName = p.displayName,
@@ -295,5 +291,4 @@ class SupabaseProfileRepository : ProfileRepository {
                 )
             }
         }
-
 }
