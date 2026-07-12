@@ -15,10 +15,7 @@ class MainViewModel(
 
     private fun ensureProfile() {
         viewModelScope.launch {
-            profileRepository.ensureProfileExists().fold(
-                onSuccess = { println("TEMPO_PROFILE: OK") },
-                onFailure = { e -> println("TEMPO_PROFILE: FAILED -> ${e.message}") },
-            )
+            profileRepository.ensureProfileExists()
         }
     }
 }
