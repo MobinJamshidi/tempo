@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -46,6 +47,7 @@ private val StopRed = Color(0xFFE57373)
 
 @Composable
 fun FriendsScreen(
+    onBack: () -> Unit = {},
     viewModel: FriendsViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -54,15 +56,27 @@ fun FriendsScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 20.dp, bottom = 100.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 40.dp, bottom = 100.dp),
     ) {
         item {
-            Text(
-                text = "Friends",
-                color = MaterialTheme.colorScheme.onBackground,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "‹",
+                    color = AccentBlue,
+                    fontSize = 28.sp,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { onBack() }
+                        .padding(horizontal = 8.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Friends",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
             Spacer(Modifier.height(16.dp))
 
             // search bar

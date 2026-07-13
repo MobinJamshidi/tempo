@@ -42,6 +42,11 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.ktor.client.okhttp)
+            androidMain.dependencies {
+                implementation(libs.compose.uiToolingPreview)
+                implementation(libs.ktor.client.okhttp)
+                implementation(libs.androidx.activity.compose)
+            }
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -67,6 +72,13 @@ kotlin {
 
             // Date & time
             implementation(libs.kotlinx.datetime)
+
+            // Supabase Storage (for avatar upload)
+            implementation(libs.supabase.storage)
+
+            // Image loading
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor)
 
             implementation("androidx.core:core-ktx:1.13.1")
         }

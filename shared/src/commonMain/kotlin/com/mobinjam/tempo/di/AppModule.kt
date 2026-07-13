@@ -45,7 +45,7 @@ val appModule = module {
     viewModel { StudyViewModel(get(), get(), get(), get()) }
     single<SettingsRepository> { SupabaseSettingsRepository() }
     viewModel { StudyLauncher() }
-    viewModel { ProfileViewModel(get(), get(), get()) }
+    viewModel { ProfileViewModel(get(), get(), get(), get()) }
     single<ProfileRepository> { SupabaseProfileRepository() }
 
     viewModel { MainViewModel(get()) }
@@ -57,5 +57,6 @@ val appModule = module {
     viewModel { GlobalStudyViewModel(get()) }
     single<RoomRepository> { SupabaseRoomRepository() }
     viewModel { RoomsViewModel(get(), get()) }
+
 
 }
