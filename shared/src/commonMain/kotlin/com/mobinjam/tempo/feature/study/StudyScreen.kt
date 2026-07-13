@@ -53,6 +53,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.input.KeyboardType
+import io.github.jan.supabase.auth.auth
 
 private val AccentBlue = Color(0xFF3AC6FF)
 private val CardBg = Color(0xFF1A1F2E)
@@ -66,17 +67,31 @@ fun StudyScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showGoalDialog by remember { mutableStateOf(false) }
     var showGlobalStudy by remember { mutableStateOf(false) }
+    var showRooms by remember { mutableStateOf(false) }
+    var myUserId by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         val pending = studyLauncher.consumeCategory()
         if (pending != null) {
             viewModel.startWithCategory(pending)
         }
+        myUserId = com.mobinjam.tempo.core.data.remote.SupabaseClientProvider.client
+            .auth
+            .currentUserOrNull()
+            ?.id ?: ""
     }
 
     if (showGlobalStudy) {
         com.mobinjam.tempo.feature.social.GlobalStudyScreen(
             onBack = { showGlobalStudy = false },
+        )
+        return
+    }
+
+    if (showRooms) {
+        com.mobinjam.tempo.feature.rooms.RoomsScreen(
+            onBack = { showRooms = false },
+            myUserId = myUserId,
         )
         return
     }
@@ -151,6 +166,40 @@ fun StudyScreen(
             com.mobinjam.tempo.feature.social.GlobalStudySection(
                 onOpenGlobal = { showGlobalStudy = true },
             )
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CardBg)
+                    .clickable { showRooms = true }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(text = "🏠", fontSize = 18.sp)
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Study rooms",
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "Study together with friends",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                    )
+                }
+                Text(
+                    text = "›",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 18.sp,
+                )
+            }
+
             Spacer(Modifier.height(24.dp))
 
             DailyGoalCard(

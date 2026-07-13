@@ -24,6 +24,9 @@ import com.mobinjam.tempo.feature.main.MainViewModel
 import com.mobinjam.tempo.feature.social.presentation.FriendsViewModel
 import com.mobinjam.tempo.feature.social.presentation.ActiveFriendsViewModel
 import com.mobinjam.tempo.feature.social.presentation.GlobalStudyViewModel
+import com.mobinjam.tempo.feature.rooms.data.SupabaseRoomRepository
+import com.mobinjam.tempo.feature.rooms.domain.RoomRepository
+import com.mobinjam.tempo.feature.rooms.presentation.RoomsViewModel
 
 val appModule = module {
 
@@ -52,5 +55,7 @@ val appModule = module {
     viewModel { ActiveFriendsViewModel(get()) }
 
     viewModel { GlobalStudyViewModel(get()) }
+    single<RoomRepository> { SupabaseRoomRepository() }
+    viewModel { RoomsViewModel(get(), get()) }
 
 }
