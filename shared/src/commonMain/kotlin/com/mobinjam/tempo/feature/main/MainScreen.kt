@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,12 +32,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mobinjam.tempo.core.designsystem.icons.ProfileIcon
 import com.mobinjam.tempo.core.designsystem.icons.StudyIcon
 import com.mobinjam.tempo.core.designsystem.icons.TasksIcon
 import com.mobinjam.tempo.feature.profile.ProfileScreen
 import com.mobinjam.tempo.feature.study.StudyScreen
 import com.mobinjam.tempo.feature.tasks.TasksScreen
+import org.koin.compose.viewmodel.koinViewModel
 
 private val GlowBlue = Color(0xFF3AC6FF)
 
@@ -47,13 +50,25 @@ private enum class Tab(val label: String) {
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    onLogout: () -> Unit = {},
+    studyLauncher: StudyLauncher = koinViewModel(),
+    mainViewModel: MainViewModel = koinViewModel(),
+) {
     var selectedTab by remember { mutableStateOf(Tab.Tasks) }
+
+    val navigateToStudy by studyLauncher.navigateToStudy.collectAsStateWithLifecycle()
+
+    LaunchedEffect(navigateToStudy) {
+        if (navigateToStudy) {
+            selectedTab = Tab.Study
+            studyLauncher.consumeNavigation()
+        }
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // soft blue gradient background so the glass navbar has something to shine over
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
@@ -64,16 +79,13 @@ fun MainScreen() {
                 ),
             ),
     ) {
-        // ---- content area ----
         Box(modifier = Modifier.fillMaxSize()) {
             when (selectedTab) {
                 Tab.Tasks -> TasksScreen()
                 Tab.Study -> StudyScreen()
-                Tab.Profile -> ProfileScreen()
-            }
+                Tab.Profile -> ProfileScreen(onLogout = onLogout)            }
         }
 
-        // ---- floating glass navbar ----
         GlassNavBar(
             selectedTab = selectedTab,
             onTabSelected = { selectedTab = it },

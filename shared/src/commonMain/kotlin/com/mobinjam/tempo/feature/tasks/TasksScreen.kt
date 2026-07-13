@@ -53,7 +53,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mobinjam.tempo.feature.main.StudyLauncher
 import com.mobinjam.tempo.feature.tasks.domain.Subtask
 import com.mobinjam.tempo.feature.tasks.domain.Task
 import com.mobinjam.tempo.feature.tasks.domain.TaskPriority
@@ -71,11 +73,13 @@ private val CardBg = Color(0xFF1A1F2E)
 @Composable
 fun TasksScreen(
     viewModel: TasksViewModel = koinViewModel(),
+    studyLauncher: StudyLauncher = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showCalendar by remember { mutableStateOf(false) }
     var showAddSheet by remember { mutableStateOf(false) }
     var swipeHintShown by remember { mutableStateOf(false) }
+    var studyTask by remember { mutableStateOf<Task?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -181,6 +185,7 @@ fun TasksScreen(
                                     viewModel.startEditingTask(task)
                                     showAddSheet = true
                                 },
+                                onStudy = { studyTask = task },
                                 onToggle = { viewModel.toggleTask(task.id, task.isDone) },
                                 onDelete = { viewModel.deleteTask(task.id) },
                                 onAddSubtask = { title -> viewModel.addSubtask(task.id, title) },
@@ -241,6 +246,72 @@ fun TasksScreen(
                 showAddSheet = false
             },
         )
+    }
+
+    if (studyTask != null) {
+        StudyConfirmDialog(
+            taskTitle = studyTask!!.title,
+            onConfirm = {
+                studyLauncher.requestStartStudy(studyTask!!.category)
+                studyTask = null
+            },
+            onDismiss = { studyTask = null },
+        )
+    }
+}
+
+@Composable
+private fun StudyConfirmDialog(
+    taskTitle: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xFF16181C))
+                .padding(20.dp),
+        ) {
+            Text(
+                text = "Start study timer?",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = "A study session will start for \"$taskTitle\".",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp,
+            )
+            Spacer(Modifier.height(20.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CardBg)
+                        .clickable { onDismiss() }
+                        .padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 15.sp)
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(AccentBlue)
+                        .clickable { onConfirm() }
+                        .padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("Start", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
     }
 }
 
@@ -303,6 +374,7 @@ private fun SwipeableTaskCard(
     showSwipeHint: Boolean,
     onHintShown: () -> Unit,
     onClick: () -> Unit,
+    onStudy: () -> Unit,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
     onAddSubtask: (String) -> Unit,
@@ -352,6 +424,7 @@ private fun SwipeableTaskCard(
             task = task,
             subtasks = subtasks,
             onClick = onClick,
+            onStudy = onStudy,
             onToggle = onToggle,
             onDelete = onDelete,
             onAddSubtask = onAddSubtask,
@@ -366,6 +439,7 @@ private fun TaskCard(
     task: Task,
     subtasks: List<Subtask>,
     onClick: () -> Unit,
+    onStudy: () -> Unit,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
     onAddSubtask: (String) -> Unit,
@@ -462,6 +536,24 @@ private fun TaskCard(
                     }
                 }
             }
+
+            // play button to start a study session for this task
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(AccentBlue.copy(alpha = 0.15f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onStudy,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("▶", color = AccentBlue, fontSize = 15.sp)
+            }
+
+            Spacer(Modifier.width(8.dp))
 
             Text(
                 text = "✕",

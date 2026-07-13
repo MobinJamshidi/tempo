@@ -8,30 +8,26 @@ import kotlinx.datetime.todayIn
 import kotlinx.datetime.plus
 import kotlinx.datetime.minus
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.toInstant
 
 object DateUtils {
 
-    // today's date in the device's timezone
     fun today(): LocalDate =
         Clock.System.todayIn(TimeZone.currentSystemDefault())
 
-    // convert a LocalDate to a database string like "2026-07-05"
     fun toDbString(date: LocalDate): String = date.toString()
 
-    // parse a database string back to LocalDate (or null if invalid)
     fun fromDbString(value: String?): LocalDate? =
         if (value.isNullOrBlank()) null
         else try { LocalDate.parse(value) } catch (e: Exception) { null }
 
-    // returns the 7 dates of the week that contains [date], starting Monday
     fun weekDaysOf(date: LocalDate): List<LocalDate> {
-        // how many days since Monday (Monday=0 ... Sunday=6)
         val daysFromMonday = date.dayOfWeek.ordinal
         val monday = date.minus(daysFromMonday, DateTimeUnit.DAY)
         return (0..6).map { monday.plus(it, DateTimeUnit.DAY) }
     }
 
-    // short weekday name, e.g. "Mon"
     fun weekdayShort(date: LocalDate): String =
         when (date.dayOfWeek) {
             DayOfWeek.MONDAY -> "Mon"
@@ -44,7 +40,6 @@ object DateUtils {
             else -> ""
         }
 
-    // full month name, e.g. "July"
     fun monthName(date: LocalDate): String =
         when (date.monthNumber) {
             1 -> "January"; 2 -> "February"; 3 -> "March"; 4 -> "April"
@@ -53,12 +48,9 @@ object DateUtils {
             else -> ""
         }
 
-    // all days to display in a month grid (including leading blanks as null)
     fun monthGrid(year: Int, month: Int): List<LocalDate?> {
         val firstOfMonth = LocalDate(year, month, 1)
         val daysInMonth = daysInMonth(year, month)
-
-        // leading empty cells so the 1st lands under its weekday (Monday-first)
         val leadingBlanks = firstOfMonth.dayOfWeek.ordinal
 
         val cells = mutableListOf<LocalDate?>()
@@ -70,7 +62,6 @@ object DateUtils {
     }
 
     private fun daysInMonth(year: Int, month: Int): Int {
-        // count forward from day 1 until the date becomes invalid
         var count = 0
         var day = 1
         while (true) {
@@ -83,5 +74,54 @@ object DateUtils {
             }
         }
         return count
+    }
+
+    fun last7Days(): List<LocalDate> {
+        val today = today()
+        return (0..6).map { today.minus(it, DateTimeUnit.DAY) }
+    }
+
+    fun isDayBefore(a: LocalDate, b: LocalDate): Boolean =
+        a.plus(1, DateTimeUnit.DAY) == b
+
+    fun nowTimestamp(): String {
+        val now = kotlin.time.Clock.System.now()
+            .toLocalDateTime(TimeZone.currentSystemDefault())
+        return now.toString()
+    }
+
+    fun hourOf(timestamp: String?): Int? {
+        if (timestamp.isNullOrBlank()) return null
+        return try {
+            // normalize: replace space with T, drop timezone/fraction
+            val normalized = timestamp
+                .replace(" ", "T")
+                .substringBefore(".")
+                .substringBefore("+")
+                .trim()
+            // extract hour from "2026-07-09T01:07:46" → the part after T, before first :
+            val timePart = normalized.substringAfter("T", "")
+            timePart.substringBefore(":").toIntOrNull()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // seconds elapsed since a given timestamp string
+    fun secondsSince(timestamp: String?): Long {
+        if (timestamp.isNullOrBlank()) return 0
+        return try {
+            val normalized = timestamp
+                .replace(" ", "T")
+                .substringBefore(".")
+                .substringBefore("+")
+                .trim()
+            val started = kotlinx.datetime.LocalDateTime.parse(normalized)
+                .toInstant(TimeZone.currentSystemDefault())
+            val now = kotlin.time.Clock.System.now()
+            (now - started).inWholeSeconds.coerceAtLeast(0)
+        } catch (e: Exception) {
+            0
+        }
     }
 }

@@ -5,12 +5,28 @@ import com.mobinjam.tempo.feature.auth.domain.AuthRepository
 import com.mobinjam.tempo.feature.auth.presentation.ForgotPasswordViewModel
 import com.mobinjam.tempo.feature.auth.presentation.LoginViewModel
 import com.mobinjam.tempo.feature.auth.presentation.SignUpViewModel
+import com.mobinjam.tempo.feature.main.StudyLauncher
+import com.mobinjam.tempo.feature.profile.ProfileViewModel
+import com.mobinjam.tempo.feature.settings.data.SupabaseSettingsRepository
+import com.mobinjam.tempo.feature.settings.domain.SettingsRepository
 import com.mobinjam.tempo.feature.tasks.data.SupabaseTaskRepository
 import com.mobinjam.tempo.feature.tasks.domain.TaskRepository
 import com.mobinjam.tempo.feature.tasks.presentation.TasksViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 import com.mobinjam.tempo.feature.splash.SplashViewModel
+import com.mobinjam.tempo.feature.study.data.SupabaseStudyRepository
+import com.mobinjam.tempo.feature.study.domain.StudyRepository
+import com.mobinjam.tempo.feature.study.presentation.StudyViewModel
+import com.mobinjam.tempo.feature.social.data.SupabaseProfileRepository
+import com.mobinjam.tempo.feature.social.domain.ProfileRepository
+import com.mobinjam.tempo.feature.main.MainViewModel
+import com.mobinjam.tempo.feature.social.presentation.FriendsViewModel
+import com.mobinjam.tempo.feature.social.presentation.ActiveFriendsViewModel
+import com.mobinjam.tempo.feature.social.presentation.GlobalStudyViewModel
+import com.mobinjam.tempo.feature.rooms.data.SupabaseRoomRepository
+import com.mobinjam.tempo.feature.rooms.domain.RoomRepository
+import com.mobinjam.tempo.feature.rooms.presentation.RoomsViewModel
 
 val appModule = module {
 
@@ -25,4 +41,21 @@ val appModule = module {
     viewModel { TasksViewModel(get()) }
 
     viewModel { SplashViewModel(get()) }
+    single<StudyRepository> { SupabaseStudyRepository() }
+    viewModel { StudyViewModel(get(), get(), get(), get()) }
+    single<SettingsRepository> { SupabaseSettingsRepository() }
+    viewModel { StudyLauncher() }
+    viewModel { ProfileViewModel(get(), get(), get()) }
+    single<ProfileRepository> { SupabaseProfileRepository() }
+
+    viewModel { MainViewModel(get()) }
+
+    viewModel { FriendsViewModel(get()) }
+
+    viewModel { ActiveFriendsViewModel(get()) }
+
+    viewModel { GlobalStudyViewModel(get()) }
+    single<RoomRepository> { SupabaseRoomRepository() }
+    viewModel { RoomsViewModel(get(), get()) }
+
 }

@@ -67,12 +67,15 @@ kotlin {
 
             // Date & time
             implementation(libs.kotlinx.datetime)
+
+            implementation("androidx.core:core-ktx:1.13.1")
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+
         }
     }
 }
