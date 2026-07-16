@@ -27,6 +27,8 @@ import com.mobinjam.tempo.feature.social.presentation.GlobalStudyViewModel
 import com.mobinjam.tempo.feature.rooms.data.SupabaseRoomRepository
 import com.mobinjam.tempo.feature.rooms.domain.RoomRepository
 import com.mobinjam.tempo.feature.rooms.presentation.RoomsViewModel
+import com.mobinjam.tempo.core.network.ConnectivityViewModel
+import kotlin.coroutines.EmptyCoroutineContext.get
 
 val appModule = module {
 
@@ -58,5 +60,6 @@ val appModule = module {
     single<RoomRepository> { SupabaseRoomRepository() }
     viewModel { RoomsViewModel(get(), get()) }
 
-
+    // Connectivity
+    viewModel { ConnectivityViewModel(get()) }
 }

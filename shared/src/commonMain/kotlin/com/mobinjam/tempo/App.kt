@@ -6,12 +6,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mobinjam.tempo.core.designsystem.theme.TempoTheme
+import com.mobinjam.tempo.core.network.ConnectivityViewModel
+import com.mobinjam.tempo.core.network.OfflineScreen
 import com.mobinjam.tempo.feature.auth.presentation.ForgotPasswordScreen
 import com.mobinjam.tempo.feature.auth.presentation.LoginScreen
 import com.mobinjam.tempo.feature.auth.presentation.SignUpScreen
 import com.mobinjam.tempo.feature.main.MainScreen
 import com.mobinjam.tempo.feature.splash.SplashScreen
+import org.koin.compose.viewmodel.koinViewModel
 
 private enum class AppScreen { Splash, Login, SignUp, ForgotPassword, Main }
 
@@ -19,6 +23,14 @@ private enum class AppScreen { Splash, Login, SignUp, ForgotPassword, Main }
 @Preview
 fun App() {
     TempoTheme {
+        val connectivityViewModel: ConnectivityViewModel = koinViewModel()
+        val connectivityState by connectivityViewModel.uiState.collectAsStateWithLifecycle()
+
+        if (connectivityState.showOfflineScreen) {
+            OfflineScreen(onRetry = { connectivityViewModel.retry() })
+            return@TempoTheme
+        }
+
         var screen by remember { mutableStateOf(AppScreen.Splash) }
 
         when (screen) {
