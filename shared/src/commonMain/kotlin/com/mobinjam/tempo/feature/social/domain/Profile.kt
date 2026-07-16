@@ -4,6 +4,7 @@ data class Profile(
     val id: String,
     val username: String,
     val displayName: String?,
+    val avatarUrl: String? = null,
 )
 
 enum class FriendStatus {

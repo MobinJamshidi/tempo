@@ -146,20 +146,11 @@ private fun GlobalUserCard(user: ActiveFriend, tick: Long) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(AccentBlue.copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = user.profile.username.take(1).uppercase(),
-                    color = AccentBlue,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            com.mobinjam.tempo.core.designsystem.UserAvatar(
+                username = user.profile.username,
+                avatarUrl = user.profile.avatarUrl,
+                size = 44,
+            )
             Box(
                 modifier = Modifier
                     .size(12.dp)

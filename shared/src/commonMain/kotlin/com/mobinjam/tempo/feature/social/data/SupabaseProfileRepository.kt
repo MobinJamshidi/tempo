@@ -9,11 +9,19 @@ import com.mobinjam.tempo.feature.social.domain.ProfileRepository
 import com.mobinjam.tempo.feature.study.data.StudySessionDto
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.storage.storage
 import kotlinx.serialization.json.JsonPrimitive
 
 class SupabaseProfileRepository : ProfileRepository {
 
     private val db = SupabaseClientProvider.client.postgrest
+
+    private fun toProfile(dto: ProfileDto) = Profile(
+        id = dto.id,
+        username = dto.username,
+        displayName = dto.displayName,
+        avatarUrl = dto.avatarUrl,
+    )
 
     override suspend fun upsertProfile(username: String, displayName: String?): Result<Unit> =
         runCatching {
@@ -35,15 +43,13 @@ class SupabaseProfileRepository : ProfileRepository {
             val userId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
                 ?: return@runCatching null
 
-            val rows = db.from("profiles")
+            db.from("profiles")
                 .select {
                     filter { eq("id", userId) }
                 }
                 .decodeList<ProfileDto>()
-
-            rows.firstOrNull()?.let {
-                Profile(id = it.id, username = it.username, displayName = it.displayName)
-            }
+                .firstOrNull()
+                ?.let { toProfile(it) }
         }
 
     override suspend fun searchProfiles(query: String): Result<List<Profile>> =
@@ -52,16 +58,14 @@ class SupabaseProfileRepository : ProfileRepository {
 
             val myId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
 
-            val rows = db.from("profiles")
+            db.from("profiles")
                 .select {
                     filter { ilike("username", "%$query%") }
                     limit(20)
                 }
                 .decodeList<ProfileDto>()
-
-            rows
                 .filter { it.id != myId }
-                .map { Profile(id = it.id, username = it.username, displayName = it.displayName) }
+                .map { toProfile(it) }
         }
 
     override suspend fun ensureProfileExists(): Result<Unit> =
@@ -77,7 +81,6 @@ class SupabaseProfileRepository : ProfileRepository {
 
             if (existing.isNotEmpty()) return@runCatching Unit
 
-            // read username from auth metadata
             val username = user.userMetadata
                 ?.get("username")
                 ?.let { element -> (element as? JsonPrimitive)?.content }
@@ -91,6 +94,62 @@ class SupabaseProfileRepository : ProfileRepository {
                 }
             )
             Unit
+        }
+
+    override suspend fun updateUsername(newUsername: String): Result<Unit> =
+        runCatching {
+            val myId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
+                ?: throw IllegalStateException("Not logged in")
+
+            db.from("profiles").update(
+                buildMap { put("username", newUsername) }
+            ) {
+                filter { eq("id", myId) }
+            }
+            Unit
+        }
+
+    override suspend fun updatePassword(newPassword: String): Result<Unit> =
+        runCatching {
+            SupabaseClientProvider.client.auth.updateUser {
+                password = newPassword
+            }
+            Unit
+        }
+
+    override suspend fun uploadAvatar(bytes: ByteArray): Result<String> =
+        runCatching {
+            val myId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
+                ?: throw IllegalStateException("Not logged in")
+
+            val bucket = SupabaseClientProvider.client.storage.from("avatars")
+            val path = "$myId.jpg"
+
+            bucket.upload(path, bytes) {
+                upsert = true
+            }
+
+            // add a cache-busting suffix so the new image shows immediately
+            val publicUrl = bucket.publicUrl(path) + "?v=" + kotlin.time.Clock.System.now().toEpochMilliseconds()
+
+            db.from("profiles").update(
+                buildMap { put("avatar_url", publicUrl) }
+            ) {
+                filter { eq("id", myId) }
+            }
+
+            publicUrl
+        }
+
+    override suspend fun getFriendCount(): Result<Int> =
+        runCatching {
+            val myId = SupabaseClientProvider.client.auth.currentUserOrNull()?.id
+                ?: return@runCatching 0
+
+            db.from("friendships")
+                .select()
+                .decodeList<FriendshipDto>()
+                .count { (it.requesterId == myId || it.addresseeId == myId) && it.status == "accepted" }
         }
 
     override suspend fun sendFriendRequest(addresseeId: String): Result<Unit> =
@@ -151,7 +210,7 @@ class SupabaseProfileRepository : ProfileRepository {
 
             friendships.mapNotNull { f ->
                 val otherId = if (f.requesterId == myId) f.addresseeId else f.requesterId
-                val profileDto = profiles[otherId] ?: return@mapNotNull null
+                val dto = profiles[otherId] ?: return@mapNotNull null
 
                 val status = when {
                     f.status == "accepted" -> FriendStatus.FRIENDS
@@ -160,11 +219,7 @@ class SupabaseProfileRepository : ProfileRepository {
                 }
 
                 FriendProfile(
-                    profile = Profile(
-                        id = profileDto.id,
-                        username = profileDto.username,
-                        displayName = profileDto.displayName,
-                    ),
+                    profile = toProfile(dto),
                     status = status,
                     friendshipId = f.id,
                 )
@@ -228,13 +283,9 @@ class SupabaseProfileRepository : ProfileRepository {
                 .associateBy { it.id }
 
             activeSessions.mapNotNull { session ->
-                val p = profiles[session.userId] ?: return@mapNotNull null
+                val dto = profiles[session.userId] ?: return@mapNotNull null
                 ActiveFriend(
-                    profile = Profile(
-                        id = p.id,
-                        username = p.username,
-                        displayName = p.displayName,
-                    ),
+                    profile = toProfile(dto),
                     category = session.category,
                     startedAt = session.startedAt,
                 )
@@ -278,13 +329,9 @@ class SupabaseProfileRepository : ProfileRepository {
 
             activeSessions.mapNotNull { session ->
                 if (session.userId == myId) return@mapNotNull null
-                val p = profiles[session.userId] ?: return@mapNotNull null
+                val dto = profiles[session.userId] ?: return@mapNotNull null
                 ActiveFriend(
-                    profile = Profile(
-                        id = p.id,
-                        username = p.username,
-                        displayName = p.displayName,
-                    ),
+                    profile = toProfile(dto),
                     category = session.category,
                     startedAt = session.startedAt,
                     todaySecondsBefore = todayTotals[session.userId] ?: 0L,

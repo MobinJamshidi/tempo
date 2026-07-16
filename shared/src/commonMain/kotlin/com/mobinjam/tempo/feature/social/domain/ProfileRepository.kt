@@ -26,6 +26,17 @@ interface ProfileRepository {
 
     // get everyone currently studying (global)
     suspend fun getGlobalActive(): Result<List<ActiveFriend>>
+
+    // change the current user's username (must be unique)
+    suspend fun updateUsername(newUsername: String): Result<Unit>
+
+    // change the current user's password
+    suspend fun updatePassword(newPassword: String): Result<Unit>
+
+    // count of accepted friends
+    suspend fun getFriendCount(): Result<Int>
+
+    suspend fun uploadAvatar(bytes: ByteArray): Result<String>
 }
 
 
