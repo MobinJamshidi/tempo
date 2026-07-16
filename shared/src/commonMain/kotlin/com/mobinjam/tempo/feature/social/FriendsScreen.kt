@@ -205,21 +205,12 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun Avatar(username: String) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(AccentBlue.copy(alpha = 0.2f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = username.take(1).uppercase(),
-            color = AccentBlue,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-        )
-    }
+private fun Avatar(username: String, avatarUrl: String? = null) {
+    com.mobinjam.tempo.core.designsystem.UserAvatar(
+        username = username,
+        avatarUrl = avatarUrl,
+        size = 40,
+    )
 }
 
 @Composable

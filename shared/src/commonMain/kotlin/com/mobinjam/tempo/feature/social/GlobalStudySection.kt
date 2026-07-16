@@ -82,20 +82,11 @@ fun GlobalStudySection(
             // show up to 4 avatars in a row
             Row(verticalAlignment = Alignment.CenterVertically) {
                 users.take(4).forEach { user ->
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(AccentBlue.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = user.profile.username.take(1).uppercase(),
-                            color = AccentBlue,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
+                    com.mobinjam.tempo.core.designsystem.UserAvatar(
+                        username = user.profile.username,
+                        avatarUrl = user.profile.avatarUrl,
+                        size = 32,
+                    )
                     Spacer(Modifier.size(8.dp))
                 }
                 if (users.size > 4) {

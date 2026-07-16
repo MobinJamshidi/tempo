@@ -342,20 +342,11 @@ private fun GroupTaskCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 task.completedBy.take(5).forEach { p ->
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(LiveGreen.copy(alpha = 0.25f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = p.username.take(1).uppercase(),
-                            color = LiveGreen,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
+                    com.mobinjam.tempo.core.designsystem.UserAvatar(
+                        username = p.username,
+                        avatarUrl = p.avatarUrl,
+                        size = 24,
+                    )
                     Spacer(Modifier.width(5.dp))
                 }
                 if (task.completedBy.size > 5) {
@@ -486,23 +477,11 @@ private fun MemberCard(member: RoomMember, tick: Long) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (member.isStudying) AccentBlue.copy(alpha = 0.25f)
-                        else Color(0xFF2A3040)
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = member.profile.username.take(1).uppercase(),
-                    color = if (member.isStudying) AccentBlue else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            com.mobinjam.tempo.core.designsystem.UserAvatar(
+                username = member.profile.username,
+                avatarUrl = member.profile.avatarUrl,
+                size = 42,
+            )
             if (member.isStudying) {
                 Box(
                     modifier = Modifier
